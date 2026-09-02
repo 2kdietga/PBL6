@@ -78,3 +78,30 @@ class DriverLicense(models.Model):
 
     def __str__(self):
         return f"{self.license_number} - {self.license_class}"
+
+class FaceProfile(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
+
+    driver = models.OneToOneField(
+        DriverProfile,
+        on_delete=models.CASCADE,
+        related_name="face_profile",
+    )
+
+    face_image_url = models.URLField()
+    embedding = models.JSONField()
+
+    status = models.CharField(
+        max_length=10,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"FaceProfile - {self.driver.full_name}"
