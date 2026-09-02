@@ -1,5 +1,5 @@
 from django.db import models
-
+from accounts.models import DriverProfile
 
 class VehicleType(models.Model):
     code = models.CharField(
@@ -116,3 +116,34 @@ class Device(models.Model):
 
     def __str__(self):
         return self.device_code
+
+class DriverVehicleAssignment(models.Model):
+    driver = models.ForeignKey(
+        DriverProfile,
+        on_delete=models.PROTECT,
+        related_name="vehicle_assignments",
+    )
+
+    vehicle = models.ForeignKey(
+        Vehicle,
+        on_delete=models.PROTECT,
+        related_name="driver_assignments",
+    )
+
+    start_at = models.DateTimeField()
+
+    end_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    def __str__(self):
+        return f"{self.driver.full_name} - {self.vehicle.license_plate}"
