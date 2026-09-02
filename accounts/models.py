@@ -17,7 +17,7 @@ class User(AbstractUser):
         return self.username
 
 class DriverProfile(models.Model):
-    class Status(models.TextChoices):
+    class ApprovalStatus(models.TextChoices):
         PENDING = "PENDING", "Pending"
         APPROVED = "APPROVED", "Approved"
 
@@ -33,10 +33,10 @@ class DriverProfile(models.Model):
     phone = models.CharField(max_length=20)
     address = models.TextField()
 
-    status = models.CharField(
+    approval_status = models.CharField(
         max_length=10,
-        choices=Status.choices,
-        default=Status.PENDING,
+        choices=ApprovalStatus.choices,
+        default=ApprovalStatus.PENDING,
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -54,7 +54,7 @@ class DriverLicense(models.Model):
 
     driver = models.OneToOneField(
         DriverProfile,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="driver_license",
     )
 
@@ -65,7 +65,17 @@ class DriverLicense(models.Model):
     expiry_date = models.DateField()
 
     front_image_url = models.URLField()
+    front_image_public_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+    )
     back_image_url = models.URLField()
+    back_image_public_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+    )
 
     status = models.CharField(
         max_length=10,
@@ -80,24 +90,29 @@ class DriverLicense(models.Model):
         return f"{self.license_number} - {self.license_class}"
 
 class FaceProfile(models.Model):
-    class Status(models.TextChoices):
+    class ApprovalStatus(models.TextChoices):
         PENDING = "PENDING", "Pending"
         APPROVED = "APPROVED", "Approved"
         REJECTED = "REJECTED", "Rejected"
 
     driver = models.OneToOneField(
         DriverProfile,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="face_profile",
     )
 
     face_image_url = models.URLField()
+    cloudinary_public_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+    )
     embedding = models.JSONField()
 
-    status = models.CharField(
+    approval_status = models.CharField(
         max_length=10,
-        choices=Status.choices,
-        default=Status.PENDING,
+        choices=ApprovalStatus.choices,
+        default=ApprovalStatus.PENDING,
     )
 
     created_at = models.DateTimeField(auto_now_add=True)

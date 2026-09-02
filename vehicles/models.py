@@ -2,17 +2,27 @@ from django.db import models
 from accounts.models import DriverProfile
 
 class VehicleType(models.Model):
-    code = models.CharField(
-        max_length=20,
-        unique=True,
-    )
+    class Category(models.TextChoices):
+        TRUCK = "TRUCK", "Truck"
+        BUS = "BUS", "Bus"
 
-    name = models.CharField(
-        max_length=100,
+    name = models.CharField(max_length=100)
+
+    category = models.CharField(
+        max_length=10,
+        choices=Category.choices,
     )
 
     description = models.TextField(
         blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
     )
 
     def __str__(self):
@@ -85,6 +95,11 @@ class Vehicle(models.Model):
 
 
 class Device(models.Model):
+    class Status(models.TextChoices):
+        ONLINE = "ONLINE", "Online"
+        OFFLINE = "OFFLINE", "Offline"
+        MAINTENANCE = "MAINTENANCE", "Maintenance"
+
     vehicle = models.OneToOneField(
         Vehicle,
         on_delete=models.CASCADE,
@@ -96,14 +111,19 @@ class Device(models.Model):
         unique=True,
     )
 
-    device_type = models.CharField(
-        max_length=50,
-        blank=True,
+    name = models.CharField(
+        max_length=100,
     )
 
     status = models.CharField(
-        max_length=20,
-        default="ACTIVE",
+        max_length=15,
+        choices=Status.choices,
+        default=Status.OFFLINE,
+    )
+
+    last_seen_at = models.DateTimeField(
+        null=True,
+        blank=True,
     )
 
     created_at = models.DateTimeField(

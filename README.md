@@ -237,7 +237,7 @@ User
  │
  └── 0..1 DriverProfile
           │
-          ├── N DriverLicense
+          ├── 1 DriverLicense
           │
           ├── 1 FaceProfile
           │
@@ -247,7 +247,7 @@ User
                             │
                             ├── VehicleType
                             │
-                            └── N Device
+                            └── 0..1 Device
 
 DriverVehicleAssignment
           │
@@ -355,7 +355,9 @@ license_class
 issued_date
 expiry_date
 front_image
+front_image_public_id
 back_image
+back_image_public_id
 status
 created_at
 updated_at
@@ -381,6 +383,8 @@ Khi tài xế cập nhật GPLX, vẫn sử dụng **record GPLX hiện tại**,
 Nếu bị `REJECTED`, thông tin mới vẫn được giữ lại để tài xế có thể sửa và gửi lại.
 
 Ảnh được lưu trên Cloudinary.
+
+Database lưu cả URL và public ID của ảnh để có thể quản lý/xóa/thay thế file trên Cloudinary sau này.
 
 ---
 
@@ -409,7 +413,7 @@ Mỗi tài xế chỉ có **1 FaceProfile hiện tại**. Khi cập nhật khuô
 
 Face mới phải được Admin duyệt trước khi được sử dụng để xác thực.
 
-Embedding được lưu trong PostgreSQL bằng pgvector.
+Trong bản model hiện tại, embedding đang được lưu tạm bằng `JSONField` để chưa phải cấu hình pgvector quá sớm. Khi triển khai Phase 7, field này sẽ được nâng lên pgvector.
 
 Số chiều của vector phải khớp với Face API thực tế.
 
@@ -1577,10 +1581,21 @@ Django Service/API layer xử lý nghiệp vụ.
 - [x] Business rules cơ bản
 - [x] Roadmap phát triển
 
+### Đã triển khai bước đầu
+
+- [x] Custom User Model
+- [x] DriverProfile model
+- [x] DriverLicense model
+- [x] FaceProfile model
+- [x] VehicleType model
+- [x] Vehicle model
+- [x] DriverVehicleAssignment model
+- [x] Device model
+- [x] DrivingSession model
+- [x] Database migrations cho các model trên
+
 ### Chưa triển khai
 
-- [ ] Django Models
-- [ ] Database migration
 - [ ] REST API
 - [ ] Authentication
 - [ ] Cloudinary integration
@@ -1700,4 +1715,3 @@ Sau đó mới sang:
 > **M1 — Custom User + Authentication**
 
 và từ M1 trở đi mới bắt đầu tạo database schema từng phần.
-

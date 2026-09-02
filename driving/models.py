@@ -15,10 +15,7 @@ class DrivingSession(models.Model):
     )
 
     started_at = models.DateTimeField()
-    ended_at = models.DateTimeField(
-        null=True,
-        blank=True,
-    )
+    ended_at = models.DateTimeField(null=True, blank=True)
 
     status = models.CharField(
         max_length=10,
@@ -26,13 +23,8 @@ class DrivingSession(models.Model):
         default=Status.STARTED,
     )
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-    )
-
-    updated_at = models.DateTimeField(
-        auto_now=True,
-    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return (
