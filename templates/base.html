@@ -1,0 +1,23 @@
+{% load static %}
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FleetCare · Quản lý vận tải</title>
+  <link rel="stylesheet" href="{% static 'app.css' %}">
+  <script type="module" src="{% static 'app.js' %}"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Đến nội dung chính</a>
+{% include 'includes/sidebar.html' %}
+  <div class="shell">
+{% include 'includes/header.html' %}
+    <main id="main" tabindex="-1">{% block content %}{% endblock %}</main>
+{% include 'includes/footer.html' %}
+  </div>
+{% include 'includes/dialog.html' %}
+  {{ frontend_routes|json_script:"frontend-routes" }}
+  <div id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

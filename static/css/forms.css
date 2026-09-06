@@ -1,0 +1,86 @@
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.field.full {
+  grid-column: 1/-1;
+}
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 22px;
+}
+.profile-summary {
+  text-align: center;
+  padding: 35px 20px;
+}
+.profile-summary .avatar {
+  width: 75px;
+  height: 75px;
+  font-size: 25px;
+  margin: auto;
+}
+.profile-summary h2 {
+  margin-top: 20px;
+}
+.notice {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.8;
+  background: #f6f8f8;
+  padding: 14px;
+  border-radius: 7px;
+  margin: 18px 0;
+}
+.upload-preview {
+  max-width: 100%;
+  max-height: 150px;
+  object-fit: contain;
+  margin-top: 8px;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.tabs a {
+  padding: 10px 14px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.tabs a.active {
+  background: var(--pale);
+  border-color: #badccc;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+.detail-item {
+  padding: 12px;
+  background: #f7f9f8;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+.detail-item strong {
+  display: block;
+  font-size: 12px;
+  margin-top: 8px;
+}

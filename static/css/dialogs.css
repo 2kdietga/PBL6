@@ -1,0 +1,61 @@
+dialog {
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  width: 620px;
+  max-width: calc(100% - 30px);
+  max-height: 90vh;
+  padding: 25px;
+  color: var(--ink);
+  box-shadow: 0 20px 80px #142c3430;
+}
+dialog::backdrop {
+  background: #152a3966;
+}
+.dialog-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 22px;
+}
+.icon-button {
+  background: transparent;
+  border: 0;
+  padding: 8px;
+  color: var(--muted);
+  font-size: 18px;
+}
+#toast {
+  position: fixed;
+  bottom: 25px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #193c31;
+  color: white;
+  padding: 14px 22px;
+  border-radius: 9px;
+  max-width: 90%;
+  z-index: 20;
+  display: none;
+}
+.mobile-toggle {
+  display: none;
+}
+.auth {
+  max-width: 450px;
+  margin: 35px auto;
+}
+.auth h1 {
+  margin: 20px 0;
+}
+.auth .field {
+  margin: 18px 0;
+}
+.auth .button {
+  width: 100%;
+}
+.auth-links {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 22px;
+  font-size: 12px;
+}

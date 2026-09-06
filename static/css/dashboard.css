@@ -1,0 +1,148 @@
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-bottom: 25px;
+}
+.stat {
+  background: #fff;
+  border: 1px solid var(--line);
+  padding: 21px;
+  border-radius: 10px;
+}
+.stat-top {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 12px;
+}
+.stat-icon {
+  background: var(--pale);
+  color: var(--green);
+  padding: 7px;
+  border-radius: 7px;
+}
+.stat-number {
+  font-size: 32px;
+  font-weight: 650;
+  letter-spacing: -1px;
+  margin: 10px 0;
+}
+.stat small {
+  font-size: 11px;
+}
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 22px;
+  margin-bottom: 23px;
+}
+.card {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 22px;
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 22px 23px;
+  border-bottom: 1px solid var(--line);
+}
+.card-body {
+  padding: 23px;
+}
+.card-header small {
+  margin-top: 7px;
+}
+.tag {
+  display: inline-block;
+  border-radius: 5px;
+  padding: 5px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+  background: #f0f3f4;
+  color: #63747b;
+}
+.tag.good {
+  background: #e9f6ef;
+  color: #25815b;
+}
+.tag.warn {
+  background: #fff5e4;
+  color: #b47b24;
+}
+.tag.bad {
+  background: #fff0ed;
+  color: #c56352;
+}
+.tag.info {
+  background: #eaf1fd;
+  color: #557eae;
+}
+.chart {
+  height: 192px;
+  display: flex;
+  align-items: stretch;
+  gap: 13px;
+  padding-top: 12px;
+  border-bottom: 1px solid var(--line);
+  background: repeating-linear-gradient(
+    to top,
+    transparent 0,
+    transparent 44px,
+    #edf1ef 45px
+  );
+}
+.chart-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.bar {
+  width: 55%;
+  max-width: 45px;
+  background: #acd5c5;
+  border-radius: 5px 5px 0 0;
+  min-height: 4px;
+}
+.chart-column:last-child .bar {
+  background: var(--green);
+}
+.chart-labels {
+  display: flex;
+  justify-content: space-around;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 10px;
+}
+.task {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 17px 0;
+  border-bottom: 1px solid var(--line);
+}
+.task:last-child {
+  border: 0;
+}
+.task-symbol {
+  background: #fff5e5;
+  color: var(--orange);
+  border-radius: 9px;
+  padding: 11px;
+}
+.task-content {
+  flex: 1;
+}
+.task strong {
+  font-size: 13px;
+}
