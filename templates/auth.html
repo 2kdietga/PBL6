@@ -1,0 +1,4 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="card auth"><div class="card-body"><h1>{{ title }}</h1><form method="post">{% csrf_token %}{% include 'includes/fields.html' %}{% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}<button class="button primary">{{ title }}</button></form><div class="auth-links">{% if register %}<a href="{% url 'frontend:login' %}">Đã có tài khoản? Đăng nhập</a>{% else %}<a href="{% url 'frontend:register' %}">Đăng ký tài xế</a>{% endif %}</div></div></section>
+{% endblock %}

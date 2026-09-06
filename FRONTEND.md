@@ -1,98 +1,62 @@
-# Frontend FleetCare
+﻿# SaveLife — các trang động Django
 
 Chạy `python manage.py runserver`, mở http://127.0.0.1:8000/.
-Frontend dùng Django template, CSS và JavaScript thuần; không cần npm hoặc CDN.
+Các trang hiện đọc và ghi database cấu hình trong `.env`. Không tạo dữ liệu mẫu, không cần npm.
 
-Đây là giao diện tương tác với dữ liệu mẫu trong bộ nhớ của tab. Tải lại trang sẽ đặt lại dữ liệu. Không ghi database, không upload ảnh lên Cloudinary, không xác thực tài khoản hoặc khuôn mặt. Không nhập mật khẩu thật vào biểu mẫu mẫu.
+## Đã hoạt động
 
-Chọn vai trò ở góc trên để xem Admin hoặc tài xế Nguyễn Văn Minh. Hai vai trò dùng chung dữ liệu mẫu trong tab để thử luồng duyệt/kháng cáo.
+| Trang | URL | Chức năng |
+| --- | --- | --- |
+| Đăng nhập, đăng ký | `/login/`, `/register/` | Xác thực Django session; đăng ký chỉ tạo tài khoản USER |
+| Tổng quan | `/dashboard/` | Thống kê và phiên gần đây từ database theo quyền |
+| Tài xế | `/drivers/` | Admin tìm kiếm, xem hồ sơ/GPLX, duyệt và vô hiệu hóa tài khoản |
+| Hồ sơ | `/profile/` | Tài xế tạo/cập nhật hồ sơ của mình; đổi tên/ngày sinh cần duyệt lại |
+| GPLX | `/license/` | Một GPLX cho mỗi tài xế; cập nhật chuyển về PENDING |
+| Phương tiện | `/vehicles/` | Admin thêm/sửa xe; tài xế chỉ xem xe có phân công còn hiệu lực |
+| Loại xe | `/catalogs/` | Admin quản lý nhóm TRUCK/BUS |
+| Phân công | `/assignments/` | Admin phân công tài xế đã duyệt cho xe đang hoạt động |
+| Thiết bị | `/devices/` | Admin quản lý thiết bị, mỗi xe tối đa một thiết bị |
+| Phiên lái | `/sessions/` | Chỉ đọc lịch sử từ database; tài xế chỉ xem phiên của mình |
 
-| Trang | URL |
+Danh sách có tìm kiếm, bộ lọc trạng thái phù hợp và phân trang 20 bản ghi. Các thao tác ghi dùng POST, CSRF và kiểm tra quyền ở server. Không có bộ chuyển vai trò trên giao diện.
+
+Admin là tài khoản có `role=ADMIN` hoặc superuser. Có thể dùng tài khoản hiện có; nếu cần tạo quản trị viên, chạy `python manage.py createsuperuser`. Tài khoản `is_staff` đơn thuần không tự có quyền ADMIN trên web.
+
+## Phạm vi để sau
+
+- GPLX hiện nhận **URL ảnh đã có**, chưa upload ảnh/Cloudinary.
+- Khuôn mặt, embedding và xác thực nhận diện chưa triển khai.
+- Vi phạm/kháng cáo chưa có model nên chưa làm nghiệp vụ; các URL cũ hiển thị thông báo chưa triển khai.
+- Thiết bị hiện cập nhật trạng thái thủ công; không giả lập heartbeat hoặc tự cập nhật `last_seen_at`.
+- Phiên lái: bấm nút phần cứng → camera xác minh → hoàn tất kiểm tra → hệ thống tạo phiên. Web không tạo/sửa/kết thúc phiên. Giao thức thiết bị và quy trình kết thúc sẽ chốt sau.
+- Không xóa xe, phân công hay lịch sử. Xe có thể chuyển trạng thái. Phân công đã có phiên lái không đổi tài xế/xe/thời gian bắt đầu.
+
+## Cấu trúc đang sử dụng
+
+| Cần sửa | File |
 | --- | --- |
-| Tổng quan | /dashboard/ (hoặc /) |
-| Đăng nhập / đăng ký mẫu | /login/, /register/ |
-| Tài xế (Admin) | /drivers/ |
-| Hồ sơ / GPLX / khuôn mặt (tài xế) | /profile/, /license/, /face/ |
-| Phương tiện | /vehicles/ |
-| Phân công (Admin) | /assignments/ |
-| Phiên lái | /sessions/ |
-| Vi phạm và chi tiết bằng chứng | /violations/ |
-| Kháng cáo | /appeals/ |
-| Thiết bị (Admin) | /devices/ |
-| Loại xe / loại vi phạm (Admin) | /catalogs/ |
-| Django Admin hiện có | /admin/ |
+| URL và tên route | `frontend/urls.py` |
+| Truy vấn dữ liệu, phân quyền, xử lý trang | `frontend/views.py` |
+| Biểu mẫu và validation | `frontend/forms.py` |
+| Layout và sidebar | `templates/base.html`, `templates/includes/sidebar.html` |
+| Đăng nhập/đăng ký | `templates/auth.html` |
+| Tổng quan | `templates/dashboard.html` |
+| Danh sách dùng chung | `templates/list.html` |
+| Biểu mẫu dùng chung | `templates/form.html`, `templates/includes/fields.html` |
+| Chi tiết và duyệt tài xế/GPLX | `templates/driver_detail.html` |
+| CSS | `static/app.css`, `static/css/` |
+| Menu mobile và xác nhận thao tác | `static/server.js` |
+| Kiểm thử nghiệp vụ | `frontend/tests.py` |
+
+Các module `static/js/`, `static/app.js` và bộ kiểm thử Node cũ là mã prototype còn giữ lại để tham khảo; các trang động không nạp hay sử dụng chúng. `templates/index.html` và các include header/dialog cũ cũng không thuộc luồng trang động hiện tại.
+
+Đường dẫn trong template dùng `{% url 'frontend:vehicles' %}`. Trong Python dùng `reverse('frontend:vehicles')`. Thêm/sửa dùng route `frontend:create` và `frontend:edit`, nhận khóa tương ứng (`vehicles`, `catalogs`, `assignments`, `devices`).
 
 ## Kiểm tra
 
 ```text
 python manage.py check
-python manage.py test config.test_frontend
-node --experimental-vm-modules tests/frontend.test.cjs
+python manage.py test frontend.tests config.test_frontend --settings=config.test_settings
 ```
 
-## Khi nối backend
-
-### Phiên lái được khởi tạo từ phần cứng
-
-Luồng đã xác nhận: tài xế bấm nút trên thiết bị → camera chụp ảnh xác minh tài xế → hệ thống hoàn tất xác minh và các kiểm tra cần thiết → tự động tạo phiên lái.
-
-Web chỉ theo dõi trạng thái và lịch sử phiên, không có thao tác tạo phiên. Các bước kiểm tra bổ sung, giao thức thiết bị và cách kết thúc phiên chưa được chốt; hiện không cung cấp nút kết thúc trên web. Đây là cập nhật nghiệp vụ mới, thay cho mô tả tài xế bắt đầu phiên trên web trước đây. Chưa triển khai tích hợp phần cứng/API.
-
-- Thay dữ liệu từ `static/js/data/demo.js` và các thao tác trong `js/events/forms.js`, `js/events/actions.js` bằng lớp gọi API, có xử lý đang tải và lỗi mạng. Trạng thái dùng chung nằm ở `js/core/store.js`.
-- Lấy vai trò từ phiên đăng nhập trên server; bộ chuyển vai trò hiện tại chỉ dành cho xem trước, không phải cơ chế phân quyền.
-- Server phải kiểm tra quyền trên mọi thao tác, hạng GPLX theo thông số xe, thời hạn phân công, face verification và các ràng buộc phiên lái.
-- Nối upload Cloudinary và bằng chứng thực tế. Hiện tại vùng bằng chứng hiển thị trạng thái chưa có dữ liệu; ảnh tải lên chỉ được xem trước.
-- Biểu đồ tuần là minh họa độc lập; thay bằng thống kê từ API khi có backend.
-- Việc sửa kết quả kháng cáo đã xử lý trong bản mẫu đồng bộ lại trạng thái vi phạm. Cần chốt quy tắc backend theo điểm còn mở trong README trước khi triển khai thật.
-
-## Cấu trúc và nơi chỉnh sửa
-
-Các file JavaScript dùng ES modules với `import` / `export` rõ ràng. Không cần bundler. `app.js` chỉ khởi tạo ứng dụng; `app.css` chỉ nạp các stylesheet theo thứ tự.
-
-| Cần sửa | File / thư mục |
-| --- | --- |
-| Thêm hoặc đổi URL | `frontend/urls.py` |
-| Cung cấp dữ liệu cấu hình từ Django | `frontend/views.py` |
-| Layout HTML dùng chung | `templates/base.html` |
-| Sidebar, header, footer, dialog | `templates/includes/` |
-| Điểm vào template | `templates/index.html` |
-| Khởi tạo JavaScript | `static/app.js` |
-| Điều hướng, Back/Forward, URL | `static/js/core/router.js` |
-| Chọn trang để hiển thị | `static/js/core/render.js` |
-| Menu theo vai trò | `static/js/core/navigation.js` |
-| Trạng thái và truy vấn dữ liệu mẫu | `static/js/core/store.js` |
-| Dữ liệu mẫu ban đầu | `static/js/data/demo.js` |
-| Tổng quan | `static/js/pages/dashboard.js` |
-| Đăng nhập / đăng ký | `static/js/pages/auth.js` |
-| Hồ sơ / GPLX / khuôn mặt | `static/js/pages/profile.js` |
-| Bảng danh sách, tìm kiếm, bộ lọc dùng chung | `static/js/pages/list.js` |
-| Cột và nội dung từng danh sách | `static/js/pages/lists/` (ví dụ `vehicles.js`, `violations.js`) |
-| Thành phần giao diện dùng chung | `static/js/components/ui.js` |
-| Biểu mẫu thêm/sửa và hộp chi tiết | `static/js/components/dialogs.js` |
-| Xử lý nút bấm, bộ lọc, xem trước ảnh | `static/js/events/actions.js` |
-| Xử lý gửi biểu mẫu, thay đổi dữ liệu | `static/js/events/forms.js` |
-| CSS nền, layout, bảng, form, dialog, responsive | `static/css/` |
-
-HTML của các trang tương tác vẫn do module trong `js/pages/` dựng; template Django chịu trách nhiệm layout và cung cấp cấu hình. Các trang danh sách dùng chung bộ render bảng để tránh lặp mã.
-
-## Sử dụng đường dẫn
-
-Trong Django template:
-
-```django
-{% url 'frontend:vehicles' %}
-{% url 'frontend:violations' %}
-```
-
-Trong module JavaScript nằm dưới `js/pages/`:
-
-```javascript
-import { urlFor, navigate } from '../core/router.js';
-
-const vehicleUrl = urlFor('vehicles');
-navigate('violations');
-```
-
-Django sinh bảng URL qua `reverse()` và truyền an toàn bằng `json_script`. Không hard-code lại đường dẫn trong JavaScript. Khi thêm trang mới, khai báo tên ở `frontend/urls.py`, thêm mục menu và module render tương ứng.
-
-Các URL có thể mở trực tiếp hoặc tải lại. Điều hướng nội bộ dùng History API để giữ dữ liệu mẫu; Ctrl/Cmd-click và mở tab mới vẫn là liên kết bình thường. Liên kết cũ dạng `/#vehicles` được chuyển sang URL mới khi mở. Vai trò mặc định khi tải lại là Admin; các trang riêng `/profile/`, `/license/`, `/face/` tự mở chế độ tài xế mẫu.
+Bộ test dùng SQLite trong bộ nhớ, không thay đổi database PostgreSQL hiện tại. Không cần migration mới cho thay đổi giao diện này.

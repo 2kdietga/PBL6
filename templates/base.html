@@ -4,20 +4,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>FleetCare · Quản lý vận tải</title>
+  <title>{{ title }} · SaveLife</title>
   <link rel="stylesheet" href="{% static 'app.css' %}">
-  <script type="module" src="{% static 'app.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'css/server.css' %}">
+  <script src="{% static 'server.js' %}" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">Đến nội dung chính</a>
 {% include 'includes/sidebar.html' %}
   <div class="shell">
-{% include 'includes/header.html' %}
-    <main id="main" tabindex="-1">{% block content %}{% endblock %}</main>
+    <header class="topbar"><button class="icon-button mobile-toggle" id="menu" aria-label="Mở menu" aria-expanded="false">☰</button><span>{{ title }}</span><div class="topbar-right">{% if user.is_authenticated %}<span>{{ user.username }} · {% if is_admin %}Quản trị viên{% else %}Tài xế{% endif %}</span><form method="post" action="{% url 'frontend:logout' %}">{% csrf_token %}<button class="button">Đăng xuất</button></form>{% else %}<a href="{% url 'frontend:login' %}">Đăng nhập</a>{% endif %}</div></header>
+    <main id="main" tabindex="-1">{% for message in messages %}<div class="notice {{ message.tags }}" role="status">{{ message }}</div>{% endfor %}{% block content %}{% endblock %}</main>
 {% include 'includes/footer.html' %}
   </div>
-{% include 'includes/dialog.html' %}
-  {{ frontend_routes|json_script:"frontend-routes" }}
-  <div id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>

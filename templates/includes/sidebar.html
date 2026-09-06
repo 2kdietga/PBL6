@@ -9,9 +9,9 @@
     </div>
   </div>
   <p class="nav-label">ĐIỀU HÀNH</p>
-  <nav id="navigation" aria-label="Điều hướng chính"></nav>
+  <nav id="navigation" aria-label="Điều hướng chính">{% if user.is_authenticated %}{% for name, label in navigation %}{% with route='frontend:'|add:name %}<a href="{% url route %}" {% if request.resolver_match.url_name == name %}class="active" aria-current="page"{% endif %}>{{ label }}</a>{% endwith %}{% endfor %}{% else %}<a href="{% url 'frontend:login' %}">Đăng nhập</a><a href="{% url 'frontend:register' %}">Đăng ký tài xế</a>{% endif %}</nav>
   <div class="sidebar-footer">
-    <span class="status-dot"></span> Phiên bản giao diện mẫu<small
+    <span class="status-dot"></span> Hệ thống quản lý vận tải<small
       >Quản lý tập trung. An tâm mỗi chuyến.</small
     >
   </div>

@@ -1,0 +1,109 @@
+from django import forms
+from django.contrib.auth.forms import UserCreationForm
+from django.utils import timezone
+from accounts.models import User, DriverProfile, DriverLicense
+from vehicles.models import Vehicle, VehicleType, Device, DriverVehicleAssignment
+
+
+class RegisterForm(UserCreationForm):
+    email = forms.EmailField(label='Email', required=True)
+
+    class Meta(UserCreationForm.Meta):
+        model = User
+        fields = ('username', 'email')
+
+
+class ProfileForm(forms.ModelForm):
+    class Meta:
+        model = DriverProfile
+        fields = ('full_name', 'date_of_birth', 'phone', 'address')
+        labels = dict(full_name='Họ và tên', date_of_birth='Ngày sinh', phone='Số điện thoại', address='Địa chỉ')
+        widgets = {'date_of_birth': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d')}
+
+    def clean_date_of_birth(self):
+        value = self.cleaned_data['date_of_birth']
+        if value >= timezone.localdate():
+            raise forms.ValidationError('Ngày sinh phải trước ngày hiện tại.')
+        return value
+
+
+class LicenseForm(forms.ModelForm):
+    class Meta:
+        model = DriverLicense
+        fields = ('license_number', 'license_class', 'issued_date', 'expiry_date', 'front_image_url', 'back_image_url')
+        labels = dict(license_number='Số GPLX', license_class='Hạng GPLX', issued_date='Ngày cấp', expiry_date='Ngày hết hạn', front_image_url='URL ảnh mặt trước', back_image_url='URL ảnh mặt sau')
+        widgets = {key: forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d') for key in ('issued_date', 'expiry_date')}
+
+    def clean(self):
+        values = super().clean()
+        issued, expiry = values.get('issued_date'), values.get('expiry_date')
+        if issued and issued > timezone.localdate():
+            self.add_error('issued_date', 'Ngày cấp không được ở tương lai.')
+        if expiry and (expiry <= timezone.localdate() or (issued and expiry <= issued)):
+            self.add_error('expiry_date', 'GPLX phải còn hạn và ngày hết hạn phải sau ngày cấp.')
+        return values
+
+
+class VehicleTypeForm(forms.ModelForm):
+    class Meta:
+        model = VehicleType
+        fields = ('name', 'category', 'description')
+        labels = dict(name='Tên loại xe', category='Nhóm xe', description='Mô tả')
+
+    def clean_category(self):
+        value = self.cleaned_data['category']
+        if self.instance.pk and self.instance.vehicles.exists() and VehicleType.objects.get(pk=self.instance.pk).category != value:
+            raise forms.ValidationError('Loại xe đã được sử dụng; không thể đổi nhóm xe.')
+        return value
+
+
+class VehicleForm(forms.ModelForm):
+    class Meta:
+        model = Vehicle
+        fields = ('license_plate', 'vehicle_type', 'brand', 'model', 'manufacture_year', 'load_capacity', 'passenger_capacity', 'status', 'description')
+        labels = dict(license_plate='Biển số', vehicle_type='Loại xe', brand='Hãng xe', model='Mẫu xe', manufacture_year='Năm sản xuất', load_capacity='Khối lượng (kg)', passenger_capacity='Số hành khách', status='Trạng thái', description='Mô tả')
+
+    def clean(self):
+        values = super().clean()
+        kind = values.get('vehicle_type')
+        if kind:
+            key = 'load_capacity' if kind.category == 'TRUCK' else 'passenger_capacity'
+            other = 'passenger_capacity' if kind.category == 'TRUCK' else 'load_capacity'
+            if not values.get(key) or values[key] <= 0:
+                self.add_error(key, 'Thông số phải lớn hơn 0.')
+            values[other] = None
+        year = values.get('manufacture_year')
+        if year and not 1900 <= year <= timezone.localdate().year:
+            self.add_error('manufacture_year', 'Năm sản xuất không hợp lệ.')
+        return values
+
+
+class AssignmentForm(forms.ModelForm):
+    class Meta:
+        model = DriverVehicleAssignment
+        fields = ('driver', 'vehicle', 'start_at', 'end_at')
+        labels = dict(driver='Tài xế', vehicle='Phương tiện', start_at='Bắt đầu', end_at='Kết thúc (không bắt buộc)')
+        widgets = {key: forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M') for key in ('start_at', 'end_at')}
+
+    def clean(self):
+        values = super().clean()
+        start, end = values.get('start_at'), values.get('end_at')
+        if start and end and end <= start:
+            self.add_error('end_at', 'Thời gian kết thúc phải sau thời gian bắt đầu.')
+        vehicle, driver = values.get('vehicle'), values.get('driver')
+        if vehicle and vehicle.status != 'ACTIVE':
+            self.add_error('vehicle', 'Chỉ phân công xe đang hoạt động.')
+        if driver and (not driver.user.is_active or driver.approval_status != 'APPROVED'):
+            self.add_error('driver', 'Tài xế phải đang hoạt động và hồ sơ đã được duyệt.')
+        if self.instance.pk and self.instance.driving_sessions.exists():
+            old = DriverVehicleAssignment.objects.get(pk=self.instance.pk)
+            if driver and vehicle and (old.driver_id != driver.pk or old.vehicle_id != vehicle.pk or old.start_at != start):
+                raise forms.ValidationError('Phân công đã có phiên lái: chỉ cập nhật thời gian kết thúc để giữ lịch sử.')
+        return values
+
+
+class DeviceForm(forms.ModelForm):
+    class Meta:
+        model = Device
+        fields = ('device_code', 'name', 'vehicle', 'status')
+        labels = dict(device_code='Mã thiết bị', name='Tên thiết bị', vehicle='Phương tiện', status='Trạng thái')
