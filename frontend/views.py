@@ -11,7 +11,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-from accounts.models import User, DriverProfile, DriverLicense
+from accounts.models import User, DriverProfile, DriverLicense, FaceProfile
+from accounts.media_services import MediaError
+from accounts.profile_services import save_profile, save_license
 from driving.models import DrivingSession
 from vehicles.models import Vehicle, VehicleType, DriverVehicleAssignment, Device
 from .forms import RegisterForm, ProfileForm, LicenseForm, VehicleForm, VehicleTypeForm, AssignmentForm, DeviceForm
@@ -143,45 +145,42 @@ def edit(request, key, pk=None):
 @login_required
 def profile(request):
     if is_admin(request.user): raise PermissionDenied
-    with transaction.atomic():
-        User.objects.select_for_update().get(pk=request.user.pk)
-        obj = DriverProfile.objects.filter(user=request.user).first()
-        form = ProfileForm(request.POST or None, instance=obj)
-        if request.method == 'POST' and form.is_valid():
-            saved = form.save(commit=False)
-            saved.user = request.user
-            if not obj or {'full_name', 'date_of_birth'} & set(form.changed_data): saved.approval_status = 'PENDING'
-            saved.save()
-            messages.success(request, 'Đã lưu hồ sơ.')
+    obj = DriverProfile.objects.filter(user=request.user).first()
+    face = FaceProfile.objects.filter(driver=obj).first() if obj else None
+    form = ProfileForm(request.POST or None, request.FILES or None, instance=obj)
+    if request.method == 'POST' and form.is_valid():
+        try:
+            save_profile(form, request.user)
+            messages.success(request, 'Đã lưu hồ sơ.' + (' Đã tạo vector khuôn mặt và gửi chờ duyệt.' if form.cleaned_data.get('avatar') else ''))
             return redirect('frontend:profile')
-    return page(request, 'form.html', title='Hồ sơ cá nhân', form=form, status=obj.get_approval_status_display() if obj else 'Chưa có hồ sơ', note='Thay đổi họ tên hoặc ngày sinh sẽ cần Admin duyệt lại.')
+        except MediaError as exc:
+            form.add_error(None, str(exc))
+    return page(request, 'form.html', title='Hồ sơ cá nhân', form=form, face=face, status=obj.get_approval_status_display() if obj else 'Chưa có hồ sơ', note='Ảnh đầu tiên là avatar. Có thể thêm 4 góc mặt. Ảnh được gửi đến dịch vụ nhận diện để tạo vector; avatar lưu trên Cloudinary. Đổi ảnh sẽ cần duyệt khuôn mặt lại. Mỗi ảnh tối đa 5 MB.')
 
 
 @login_required
 def license_page(request):
     if is_admin(request.user): raise PermissionDenied
-    with transaction.atomic():
-        driver = DriverProfile.objects.select_for_update().filter(user=request.user).first()
-        if not driver:
-            messages.info(request, 'Vui lòng tạo hồ sơ trước khi thêm GPLX.')
-            return redirect('frontend:profile')
-        obj = DriverLicense.objects.filter(driver=driver).first()
-        form = LicenseForm(request.POST or None, instance=obj)
-        if request.method == 'POST' and form.is_valid():
-            saved = form.save(commit=False)
-            saved.driver, saved.status = driver, 'PENDING'
-            for side in ('front', 'back'):
-                if side + '_image_url' in form.changed_data: setattr(saved, side + '_image_public_id', '')
-            saved.save()
+    driver = DriverProfile.objects.filter(user=request.user).first()
+    if not driver:
+        messages.info(request, 'Vui lòng tạo hồ sơ trước khi thêm GPLX.')
+        return redirect('frontend:profile')
+    obj = DriverLicense.objects.filter(driver=driver).first()
+    form = LicenseForm(request.POST or None, request.FILES or None, instance=obj)
+    if request.method == 'POST' and form.is_valid():
+        try:
+            save_license(form, driver)
             messages.success(request, 'Đã lưu GPLX và gửi chờ duyệt.')
             return redirect('frontend:license')
-    return page(request, 'form.html', title='Giấy phép lái xe', form=form, status=obj.get_status_display() if obj else 'Chưa có GPLX', note='Hiện lưu thông tin và URL ảnh đã có. Upload ảnh/Cloudinary sẽ tích hợp sau. Mỗi lần cập nhật đều cần duyệt lại.')
+        except MediaError as exc:
+            form.add_error(None, str(exc))
+    return page(request, 'form.html', title='Giấy phép lái xe', form=form, license=obj, status=obj.get_status_display() if obj else 'Chưa có GPLX', note='Chọn ảnh JPG, PNG hoặc WebP từ máy, tối đa 5 MB/ảnh. Ảnh được lưu trên Cloudinary. Khi cập nhật có thể giữ ảnh cũ bằng cách không chọn ảnh mới.')
 
 
 @admin_required
 def driver_detail(request, pk):
     driver = get_object_or_404(DriverProfile.objects.select_related('user'), pk=pk)
-    return page(request, 'driver_detail.html', title=driver.full_name, driver=driver, license=DriverLicense.objects.filter(driver=driver).first())
+    return page(request, 'driver_detail.html', title=driver.full_name, driver=driver, license=DriverLicense.objects.filter(driver=driver).first(), face=FaceProfile.objects.filter(driver=driver).first())
 
 
 @admin_required
@@ -198,6 +197,13 @@ def driver_action(request, pk):
             if user.pk == request.user.pk or is_admin(user): raise PermissionDenied
             user.is_active = action == 'enable'
             user.save(update_fields=['is_active'])
+        elif action in ('face-approve', 'face-reject'):
+            face = get_object_or_404(FaceProfile.objects.select_for_update(), driver=driver)
+            if not face.embedding:
+                messages.error(request, 'Hồ sơ chưa có vector khuôn mặt.')
+                return redirect('frontend:driver-detail', pk=pk)
+            face.approval_status = 'APPROVED' if action == 'face-approve' else 'REJECTED'
+            face.save(update_fields=['approval_status', 'updated_at'])
         elif action in ('license-approve', 'license-reject'):
             obj = get_object_or_404(DriverLicense.objects.select_for_update(), driver=driver)
             if action == 'license-approve' and obj.expiry_date <= timezone.localdate():

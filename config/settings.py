@@ -137,3 +137,9 @@ AUTH_USER_MODEL = "accounts.User"
 LOGIN_URL = 'frontend:login'
 LOGIN_REDIRECT_URL = 'frontend:dashboard'
 LOGOUT_REDIRECT_URL = 'frontend:login'
+CLOUDINARY = {
+    'cloud_name': os.getenv('CLOUDINARY_CLOUD_NAME', ''),
+    'api_key': os.getenv('CLOUDINARY_API_KEY', ''),
+    'api_secret': os.getenv('CLOUDINARY_API_SECRET', ''),
+}
+FACE_EMBEDDING_URL = os.getenv('FACE_EMBEDDING_URL', '')

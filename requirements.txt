@@ -1,0 +1,6 @@
+Django>=5.2,<5.3
+python-dotenv>=1.2,<2
+psycopg2-binary>=2.9,<3
+Pillow>=12.2,<13
+cloudinary>=1.46,<2
+requests>=2.34,<3

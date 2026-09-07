@@ -100,7 +100,10 @@ class DynamicPageTests(TestCase):
         driver = DriverProfile.objects.get(user=user)
         self.assertEqual(driver.approval_status, 'PENDING')
         payload = dict(license_number='UNIQUE123', license_class='C', issued_date='2025-01-01', expiry_date='2030-01-01', front_image_url='https://example.com/front.jpg', back_image_url='https://example.com/back.jpg')
-        self.assertRedirects(self.client.post(self.url('license'), payload), self.url('license'))
+        from unittest.mock import patch
+        from .test_uploads import image_file
+        with patch('accounts.profile_services.upload_image', side_effect=[('https://example.com/front.jpg', 'front-id'), ('https://example.com/back.jpg', 'back-id')]):
+            self.assertRedirects(self.client.post(self.url('license'), {**payload, 'front_image': image_file(), 'back_image': image_file()}), self.url('license'))
         obj = DriverLicense.objects.get(driver=driver)
         self.client.force_login(self.admin)
         self.client.post(self.url('driver-action', driver.pk), {'action':'license-approve'})

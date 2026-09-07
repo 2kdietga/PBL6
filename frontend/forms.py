@@ -5,6 +5,37 @@ from accounts.models import User, DriverProfile, DriverLicense
 from vehicles.models import Vehicle, VehicleType, Device, DriverVehicleAssignment
 
 
+class UploadImageField(forms.ImageField):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('widget', forms.FileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}))
+        super().__init__(*args, **kwargs)
+
+    def to_python(self, data):
+        if data and data.size > 5 * 1024 * 1024:
+            raise forms.ValidationError('Mỗi ảnh tối đa 5 MB.')
+        image = super().to_python(data)
+        if image and image.image.format not in ('JPEG', 'PNG', 'WEBP'):
+            raise forms.ValidationError('Chỉ nhận ảnh JPG, PNG hoặc WebP.')
+        if image and image.image.width * image.image.height > 20_000_000:
+            raise forms.ValidationError('Ảnh tối đa 20 megapixel. Vui lòng giảm kích thước ảnh.')
+        return image
+
+
+class MultiImageInput(forms.FileInput):
+    allow_multiple_selected = True
+
+
+class ExtraImagesField(UploadImageField):
+    def __init__(self, **kwargs):
+        super().__init__(widget=MultiImageInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}), **kwargs)
+
+    def clean(self, data, initial=None):
+        images = data if isinstance(data, (list, tuple)) else [data] if data else []
+        if len(images) > 4:
+            raise forms.ValidationError('Chọn tối đa 4 ảnh bổ sung.')
+        return [super(ExtraImagesField, self).clean(image) for image in images]
+
+
 class RegisterForm(UserCreationForm):
     email = forms.EmailField(label='Email', required=True)
 
@@ -14,6 +45,14 @@ class RegisterForm(UserCreationForm):
 
 
 class ProfileForm(forms.ModelForm):
+    avatar = UploadImageField(label='Ảnh đại diện / khuôn mặt', required=False)
+    extra_images = ExtraImagesField(label='Ảnh góc mặt bổ sung (tối đa 4)', required=False)
+
+    def clean(self):
+        values = super().clean()
+        if values.get('extra_images') and not values.get('avatar'):
+            self.add_error('avatar', 'Chọn ảnh đại diện cùng các ảnh bổ sung để tạo lại vector.')
+        return values
     class Meta:
         model = DriverProfile
         fields = ('full_name', 'date_of_birth', 'phone', 'address')
@@ -28,9 +67,17 @@ class ProfileForm(forms.ModelForm):
 
 
 class LicenseForm(forms.ModelForm):
+    front_image = UploadImageField(label='Ảnh GPLX mặt trước', required=False)
+    back_image = UploadImageField(label='Ảnh GPLX mặt sau', required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['front_image'].required = not bool(self.instance.front_image_url)
+        self.fields['back_image'].required = not bool(self.instance.back_image_url)
+
     class Meta:
         model = DriverLicense
-        fields = ('license_number', 'license_class', 'issued_date', 'expiry_date', 'front_image_url', 'back_image_url')
+        fields = ('license_number', 'license_class', 'issued_date', 'expiry_date')
         labels = dict(license_number='Số GPLX', license_class='Hạng GPLX', issued_date='Ngày cấp', expiry_date='Ngày hết hạn', front_image_url='URL ảnh mặt trước', back_image_url='URL ảnh mặt sau')
         widgets = {key: forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d') for key in ('issued_date', 'expiry_date')}
 
