@@ -1,13 +1,8 @@
 <aside id="sidebar">
   <a class="brand" href="{% url 'frontend:dashboard' %}"
-    ><span class="brand-icon">SL</span> SaveLife<span class="brand-dot"></span
+    ><span class="brand-icon">DS</span> DriveSense<span class="brand-dot"></span
   ></a>
-  <div class="workspace">
-    <span class="workspace-icon">VT</span>
-    <div>
-      <strong>Công ty vận tải</strong><small>Không gian làm việc</small>
-    </div>
-  </div>
+
   <p class="nav-label">ĐIỀU HÀNH</p>
   <nav id="navigation" aria-label="Điều hướng chính">{% if user.is_authenticated %}{% for name, label in navigation %}{% with route='frontend:'|add:name %}<a href="{% url route %}" {% if request.resolver_match.url_name == name %}class="active" aria-current="page"{% endif %}>{{ label }}</a>{% endwith %}{% endfor %}{% else %}<a href="{% url 'frontend:login' %}">Đăng nhập</a><a href="{% url 'frontend:register' %}">Đăng ký tài xế</a>{% endif %}</nav>
   <div class="sidebar-footer">
