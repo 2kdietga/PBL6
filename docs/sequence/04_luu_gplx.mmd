@@ -1,0 +1,55 @@
+sequenceDiagram
+    autonumber
+    actor U as Tài xế
+    participant V as license_page
+    participant F as LicenseForm
+    participant S as save_license
+    participant M as media_services
+    participant C as Cloudinary
+    participant DB as Database
+    U->>V: POST /license/ (thông tin và ảnh hai mặt)
+    V->>DB: Tìm DriverProfile của tài khoản
+    DB-->>V: Hồ sơ hoặc chưa có
+    alt Chưa có hồ sơ
+        V-->>U: Thông báo và 302 tới /profile/
+    else Đã có hồ sơ
+        V->>DB: Đọc GPLX hiện tại
+        DB-->>V: GPLX hoặc chưa có
+        V->>F: Kiểm tra số GPLX, ngày cấp, hạn và ảnh
+        F-->>V: Kết quả validation
+        alt Form không hợp lệ
+            V-->>U: Hiển thị form cùng lỗi
+        else Form hợp lệ
+            V->>S: save_license(form, driver)
+            loop Mỗi mặt có ảnh mới, dừng nếu phát sinh lỗi
+                S->>M: upload_image(image, licenses)
+                M->>C: Upload ảnh
+                C-->>M: URL và public_id hoặc lỗi
+                M-->>S: Thông tin ảnh hoặc MediaError
+            end
+            alt Upload thành công hoặc không có ảnh mới
+                S->>DB: BEGIN atomic, khóa DriverProfile và GPLX hiện tại
+                S->>S: Giữ ảnh cũ ở mặt không có ảnh mới
+                S->>DB: Lưu GPLX với status=PENDING
+                S->>S: Đăng ký on_commit xóa ảnh được thay thế
+                alt Lưu thành công
+                    S->>DB: COMMIT
+                    S->>M: delete_images(ảnh cũ được thay thế)
+                    M->>C: Yêu cầu xóa các ảnh cũ nếu có
+                    S-->>V: GPLX đã lưu
+                    V-->>U: Thông báo thành công, 302 tới /license/
+                else Exception khi lưu
+                    S->>DB: ROLLBACK
+                    S->>M: Dọn các ảnh mới đã nhận public_id
+                    M->>C: Yêu cầu xóa ảnh mới
+                    S-->>V: Ném lại exception
+                    Note over V,U: View chỉ xử lý MediaError thành lỗi form
+                end
+            else Upload phát sinh MediaError
+                S->>M: Dọn các ảnh mới đã upload trước lỗi
+                M->>C: Yêu cầu xóa ảnh nếu có
+                S-->>V: Ném lại MediaError
+                V-->>U: Hiển thị form cùng thông báo lỗi
+            end
+        end
+    end

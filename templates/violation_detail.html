@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-heading"><h1>{{ title }}</h1><a class="button" href="{% url 'frontend:violations' %}">← Danh sách vi phạm</a></div>
+<section class="card">
+  <div class="card-header"><h2>Thông tin vi phạm</h2><span class="tag">{{ violation.get_status_display }}</span></div>
+  <div class="card-body">
+    <div class="detail-grid">
+      <div>Tài xế: {{ violation.session.assignment.driver.full_name }}</div>
+      <div>Phương tiện: {{ violation.session.assignment.vehicle.license_plate }}</div>
+      <div>Phiên lái: #{{ violation.session_id }}</div>
+      <div>Phát hiện lúc: {{ violation.detected_at|date:'d/m/Y H:i:s' }}</div>
+      <div>Loại vi phạm: {{ violation.violation_type.name }}</div>
+      <div>Mức độ: {{ violation.get_severity_display }}</div>
+    </div>
+    {% if violation.admin_note %}<h3>Ghi chú của quản trị viên</h3><div>{{ violation.admin_note|linebreaksbr }}</div>{% endif %}
+  </div>
+</section>
+<section class="card">
+  <div class="card-header"><h2>Bằng chứng</h2></div>
+  <div class="card-body evidence-grid">
+    {% for evidence in evidences %}
+    <figure class="evidence-item">
+      {% if evidence.safe_url %}
+        {% if evidence.type == 'IMAGE' %}<a href="{{ evidence.safe_url }}" target="_blank" rel="noopener noreferrer"><img src="{{ evidence.safe_url }}" alt="Bằng chứng vi phạm VP-{{ violation.pk }}" loading="lazy" referrerpolicy="no-referrer"></a>
+        {% elif evidence.type == 'VIDEO' %}<video controls preload="metadata" src="{{ evidence.safe_url }}">Trình duyệt không hỗ trợ phát video.</video>{% endif %}
+        <figcaption>{{ evidence.get_type_display }} · {{ evidence.captured_at|date:'d/m/Y H:i:s' }} · <a href="{{ evidence.safe_url }}" target="_blank" rel="noopener noreferrer">Mở bằng chứng ↗</a></figcaption>
+      {% else %}<p>Đường dẫn bằng chứng không hợp lệ.</p>{% endif %}
+    </figure>
+    {% empty %}<p class="empty">Chưa có bằng chứng cho vi phạm này.</p>{% endfor %}
+  </div>
+</section>
+{% if is_admin %}
+<section class="card">
+  <div class="card-header"><h2>Xác nhận vi phạm</h2></div>
+  <div class="card-body">
+    {% if violation.status == 'PENDING' %}
+    <form method="post" action="{% url 'frontend:violation-review' violation.pk %}">
+      {% csrf_token %}{% include 'includes/fields.html' %}
+      <div class="form-actions"><button class="button danger" name="action" value="reject" data-confirm="Từ chối vi phạm này?">Từ chối</button><button class="button primary" name="action" value="approve" data-confirm="Xác nhận vi phạm này?">Xác nhận vi phạm</button></div>
+    </form>
+    {% elif can_reopen %}
+    <p>Vi phạm đã được xử lý. Chọn xem xét lại để đưa về trạng thái chờ xác nhận.</p>
+    <form method="post" action="{% url 'frontend:violation-review' violation.pk %}">{% csrf_token %}<button class="button" name="action" value="reopen" data-confirm="Đưa vi phạm về trạng thái chờ xác nhận?">Xem xét lại</button></form>
+    {% else %}<p>Vi phạm đã có kháng cáo. Chức năng xử lý kháng cáo sẽ được bổ sung sau.</p>{% endif %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

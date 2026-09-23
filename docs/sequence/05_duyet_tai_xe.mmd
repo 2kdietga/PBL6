@@ -1,0 +1,43 @@
+sequenceDiagram
+    autonumber
+    actor A as Quản trị viên
+    participant V as driver_action
+    participant DB as Database
+    A->>V: POST /drivers/pk/action/ (action)
+    V->>DB: BEGIN atomic, khóa DriverProfile
+    DB-->>V: Hồ sơ tài xế
+    alt action = approve
+        V->>DB: DriverProfile.approval_status = APPROVED
+    else action = enable hoặc disable
+        V->>DB: Khóa User của tài xế
+        DB-->>V: User
+        alt Là chính người thao tác hoặc tài khoản quản trị
+            V->>DB: ROLLBACK khi PermissionDenied
+            V-->>A: 403, dừng xử lý
+        else Tài khoản được phép cập nhật
+            V->>DB: Lưu is_active theo action
+        end
+    else action = face-approve hoặc face-reject
+        V->>DB: Khóa và đọc FaceProfile
+        DB-->>V: Hồ sơ khuôn mặt
+        alt Không có embedding
+            V->>V: Ghi thông báo lỗi, không đổi trạng thái
+        else Có embedding
+            V->>DB: Lưu APPROVED hoặc REJECTED
+        end
+    else action = license-approve hoặc license-reject
+        V->>DB: Khóa và đọc DriverLicense
+        DB-->>V: GPLX
+        alt Duyệt GPLX có expiry_date không sau hôm nay
+            V->>V: Ghi thông báo lỗi, không đổi trạng thái
+        else Được phép thực hiện action
+            V->>DB: Lưu ACTIVE hoặc REJECTED
+        end
+    else action không được hỗ trợ
+        V->>DB: ROLLBACK khi PermissionDenied
+        V-->>A: 403, dừng xử lý
+    end
+    opt Không phát sinh exception
+        V->>DB: COMMIT khi rời atomic
+        V-->>A: 302 tới chi tiết tài xế với thông báo kết quả
+    end

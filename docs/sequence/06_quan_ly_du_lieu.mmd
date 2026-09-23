@@ -1,0 +1,39 @@
+sequenceDiagram
+    autonumber
+    actor A as Quản trị viên
+    participant V as edit view
+    participant F as ModelForm tương ứng
+    participant DB as Database
+    A->>V: POST /manage/key/new/ hoặc /manage/key/pk/
+    V->>V: Kiểm tra key và form trong ENTITIES
+    alt Key không hỗ trợ chỉnh sửa
+        V-->>A: 403
+    else Key hợp lệ
+        V->>DB: BEGIN atomic
+        opt Cập nhật bản ghi hiện có
+            V->>DB: select_for_update theo pk
+            DB-->>V: Bản ghi hoặc 404 nếu không có
+        end
+        V->>F: Khởi tạo form với POST và instance
+        V->>F: is_valid()
+        F->>DB: Đọc đối tượng liên quan và kiểm tra ràng buộc
+        DB-->>F: Dữ liệu kiểm tra
+        opt Là AssignmentForm
+            F->>F: Kiểm tra end_at sau start_at nếu có
+            F->>F: Xe ACTIVE, tài xế hoạt động và APPROVED
+            F->>DB: Kiểm tra phân công đã có driving_sessions chưa
+            DB-->>F: Kết quả
+            F->>F: Nếu đã có phiên, cấm đổi driver, vehicle, start_at
+        end
+        F-->>V: Kết quả validation
+        alt Form hợp lệ
+            V->>F: save()
+            F->>DB: INSERT hoặc UPDATE model
+            DB-->>F: Đã lưu
+            V->>DB: COMMIT khi rời atomic
+            V-->>A: Thông báo thành công, 302 tới danh sách
+        else Form không hợp lệ
+            V->>DB: Kết thúc atomic, không lưu form
+            V-->>A: Hiển thị form cùng lỗi
+        end
+    end

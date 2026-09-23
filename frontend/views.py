@@ -16,6 +16,8 @@ from accounts.media_services import MediaError
 from accounts.profile_services import save_profile, save_license
 from driving.models import DrivingSession
 from vehicles.models import Vehicle, VehicleType, DriverVehicleAssignment, Device
+from violations.models import ViolationType
+from violations.forms import ViolationTypeForm
 from .forms import RegisterForm, ProfileForm, LicenseForm, VehicleForm, VehicleTypeForm, AssignmentForm, DeviceForm
 
 
@@ -32,8 +34,8 @@ def admin_required(view):
     return wrapped
 
 
-ADMIN_MENU = [('dashboard', 'Tổng quan'), ('drivers', 'Tài xế'), ('vehicles', 'Phương tiện'), ('assignments', 'Phân công'), ('sessions', 'Phiên lái'), ('devices', 'Thiết bị'), ('catalogs', 'Loại xe')]
-DRIVER_MENU = [('dashboard', 'Tổng quan'), ('profile', 'Hồ sơ cá nhân'), ('license', 'Giấy phép lái xe'), ('vehicles', 'Xe được giao'), ('sessions', 'Phiên lái của tôi')]
+ADMIN_MENU = [('dashboard', 'Tổng quan'), ('drivers', 'Tài xế'), ('vehicles', 'Phương tiện'), ('assignments', 'Phân công'), ('sessions', 'Phiên lái'), ('violations', 'Vi phạm'), ('devices', 'Thiết bị'), ('catalogs', 'Loại xe'), ('violation-types', 'Loại vi phạm')]
+DRIVER_MENU = [('dashboard', 'Tổng quan'), ('profile', 'Hồ sơ cá nhân'), ('license', 'Giấy phép lái xe'), ('vehicles', 'Xe được giao'), ('sessions', 'Phiên lái của tôi'), ('violations', 'Vi phạm của tôi')]
 
 
 def page(request, template, **context):
@@ -84,6 +86,7 @@ def dashboard(request):
 
 
 ENTITIES = {
+    'violation-types': (ViolationType, ViolationTypeForm, 'Loại vi phạm', ['Mã', 'Tên loại', 'Mô tả'], ['code', 'name', 'description']),
     'vehicles': (Vehicle, VehicleForm, 'Phương tiện', ['Biển số', 'Loại xe', 'Hãng xe', 'Trạng thái'], ['license_plate', 'vehicle_type__name', 'brand']),
     'catalogs': (VehicleType, VehicleTypeForm, 'Loại xe', ['Tên loại', 'Nhóm', 'Mô tả'], ['name', 'description']),
     'assignments': (DriverVehicleAssignment, AssignmentForm, 'Phân công xe', ['Tài xế', 'Phương tiện', 'Bắt đầu', 'Kết thúc'], ['driver__full_name', 'vehicle__license_plate']),
@@ -98,6 +101,7 @@ def display_date(value):
 
 
 def cells(key, obj):
+    if key == 'violation-types': return [obj.code, obj.name, obj.description]
     if key == 'vehicles': return [obj.license_plate, obj.vehicle_type.name, obj.brand, obj.get_status_display()]
     if key == 'catalogs': return [obj.name, obj.get_category_display(), obj.description]
     if key == 'assignments': return [obj.driver.full_name, obj.vehicle.license_plate, display_date(obj.start_at), display_date(obj.end_at)]

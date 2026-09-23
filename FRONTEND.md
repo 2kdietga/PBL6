@@ -17,6 +17,9 @@ Các trang hiện đọc và ghi database cấu hình trong `.env`. Không tạo
 | Phân công | `/assignments/` | Admin phân công tài xế đã duyệt cho xe đang hoạt động |
 | Thiết bị | `/devices/` | Admin quản lý thiết bị, mỗi xe tối đa một thiết bị |
 | Phiên lái | `/sessions/` | Chỉ đọc lịch sử từ database; tài xế chỉ xem phiên của mình |
+| Vi phạm | `/violations/` | Danh sách, tìm kiếm, lọc trạng thái và phân trang; tài xế chỉ xem vi phạm của mình ở PENDING/APPROVED |
+| Chi tiết vi phạm | `/violations/<id>/` | Xem ảnh/video bằng chứng; admin sửa loại/mức độ/ghi chú và xác nhận hoặc từ chối |
+| Loại vi phạm | `/violation-types/` | Admin thêm/sửa mã, tên và mô tả loại vi phạm |
 
 Danh sách có tìm kiếm, bộ lọc trạng thái phù hợp và phân trang 20 bản ghi. Các thao tác ghi dùng POST, CSRF và kiểm tra quyền ở server. Không có bộ chuyển vai trò trên giao diện.
 
@@ -25,7 +28,8 @@ Admin là tài khoản có `role=ADMIN` hoặc superuser. Có thể dùng tài k
 ## Phạm vi để sau
 
 - Đã tạo embedding hồ sơ; việc so khớp khuôn mặt khi bấm nút phần cứng vẫn triển khai sau.
-- Vi phạm/kháng cáo chưa có model nên chưa làm nghiệp vụ; các URL cũ hiển thị thông báo chưa triển khai.
+- Vi phạm đã có model, migration và giao diện đọc database, xem bằng chứng, xác nhận/từ chối và xem xét lại. Chưa có endpoint nhận dữ liệu từ AI, upload bằng chứng hoặc chức năng tạo vi phạm trên web. Không tự sinh dữ liệu demo.
+- Kháng cáo đã có model `Appeal` (OneToOne với Violation); `/appeals/` vẫn thông báo chưa triển khai. Chưa có chức năng gửi, xử lý hoặc xóa kháng cáo. Vi phạm đã có kháng cáo chưa được xem xét lại, chờ chốt quy tắc xử lý kháng cáo cũ.
 - Thiết bị hiện cập nhật trạng thái thủ công; không giả lập heartbeat hoặc tự cập nhật `last_seen_at`.
 - Phiên lái: bấm nút phần cứng → camera xác minh → hoàn tất kiểm tra → hệ thống tạo phiên. Web không tạo/sửa/kết thúc phiên. Giao thức thiết bị và quy trình kết thúc sẽ chốt sau.
 - Không xóa xe, phân công hay lịch sử. Xe có thể chuyển trạng thái. Phân công đã có phiên lái không đổi tài xế/xe/thời gian bắt đầu.
@@ -57,10 +61,18 @@ Các module `static/js/`, `static/app.js` và bộ kiểm thử Node cũ là mã
 
 ```text
 python manage.py check
-python manage.py test frontend.tests frontend.test_uploads config.test_frontend --settings=config.test_settings
+python manage.py test frontend.tests frontend.test_uploads config.test_frontend violations --settings=config.test_settings
 ```
 
-Bộ test dùng SQLite trong bộ nhớ, không thay đổi database PostgreSQL hiện tại. Không cần migration mới cho thay đổi giao diện này.
+Bộ test dùng SQLite trong bộ nhớ, không thay đổi database PostgreSQL hiện tại. Chạy `python manage.py migrate` để tạo bốn bảng của app `violations` trước khi dùng trang vi phạm.
+
+## Khung vi phạm
+
+`Violation` liên kết `DrivingSession` và `ViolationType`; tài xế/xe được lấy qua phân công của phiên lái, không lưu trùng. `Evidence` lưu loại IMAGE/VIDEO, URL HTTPS, public ID Cloudinary và thời điểm ghi nhận. `Appeal` chuẩn bị quan hệ một kháng cáo cho mỗi vi phạm. Database bảo vệ tham chiếu phiên lái/loại vi phạm, ràng buộc trạng thái, mức độ và mã loại không trùng (không phân biệt hoa thường).
+
+Admin chỉ xác nhận hoặc từ chối bản ghi PENDING, có thể sửa loại/mức độ/ghi chú nhưng không thay đổi phiên lái hay thời điểm phát hiện. Xác nhận yêu cầu ít nhất một Evidence. Bản ghi thiếu bằng chứng vẫn có thể ở PENDING để hỗ trợ luồng upload bổ sung sau này. Xem xét lại đưa bản ghi đã xử lý về PENDING và giữ bằng chứng. Thao tác dùng POST/CSRF và khóa bản ghi trong transaction để tránh xử lý đồng thời. Django admin chỉ xem Violation/Evidence/Appeal; quản lý ViolationType và mở liên kết tới trang xác nhận.
+
+Phần AI sau này cần bổ sung xác thực thiết bị, đối chiếu session/driver/vehicle, kiểm tra phiên STARTED, nhận/upload bằng chứng và xử lý lỗi. Chưa có đường nhận dữ liệu AI trong đợt này. Khung kháng cáo chưa xử lý quy tắc một lần suốt đời sau khi xóa; chưa mở thao tác xóa kháng cáo. Chưa có thao tác xóa vi phạm hoặc dọn file bằng chứng Cloudinary.
 
 ## Upload và embedding
 

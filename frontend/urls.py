@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from violations import views as violation_views
 
 app_name = 'frontend'
 
@@ -16,6 +17,9 @@ urlpatterns = [
     path('drivers/<int:pk>/action/', views.driver_action, name='driver-action'),
     path('manage/<str:key>/new/', views.edit, name='create'),
     path('manage/<str:key>/<int:pk>/', views.edit, name='edit'),
+    path('violations/', violation_views.listing, name='violations'),
+    path('violations/<int:pk>/', violation_views.detail, name='violation-detail'),
+    path('violations/<int:pk>/review/', violation_views.review, name='violation-review'),
 ]
 urlpatterns += [path(f'{key}/', views.listing, {'key': key}, name=key) for key in views.ENTITIES]
-urlpatterns += [path(f'{key}/', views.deferred, {'title': title}, name=key) for key, title in [('violations', 'Vi phạm'), ('appeals', 'Kháng cáo')]]
+urlpatterns += [path('appeals/', views.deferred, {'title': 'Kháng cáo'}, name='appeals')]

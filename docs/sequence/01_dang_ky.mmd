@@ -1,0 +1,27 @@
+sequenceDiagram
+    autonumber
+    actor U as Người dùng
+    participant V as register view
+    participant F as RegisterForm
+    participant A as Django Auth
+    participant DB as Database
+    U->>V: POST /register/ (username, email, mật khẩu)
+    alt Đã đăng nhập
+        V-->>U: 302 tới dashboard
+    else Chưa đăng nhập
+        V->>F: is_valid()
+        F->>DB: Kiểm tra username và ràng buộc model
+        DB-->>F: Kết quả kiểm tra
+        F-->>V: Hợp lệ hoặc lỗi nhập liệu
+        alt Form không hợp lệ
+            V-->>U: Hiển thị auth.html cùng lỗi
+        else Form hợp lệ
+            V->>F: save(commit=False)
+            F-->>V: User với mật khẩu đã băm
+            V->>DB: Lưu User với role=USER
+            DB-->>V: Tài khoản được tạo
+            V->>A: login(request, user)
+            A-->>V: Thiết lập trạng thái đăng nhập
+            V-->>U: Thông báo thành công và 302 tới /profile/
+        end
+    end

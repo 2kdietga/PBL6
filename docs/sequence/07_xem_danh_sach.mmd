@@ -1,0 +1,28 @@
+sequenceDiagram
+    autonumber
+    actor U as Người dùng
+    participant V as listing view
+    participant S as scoped
+    participant DB as Database
+    U->>V: GET danh sách (q, status, page tùy chọn)
+    alt Danh sách vehicles hoặc sessions
+        V->>S: scoped(request, model)
+        alt Là quản trị viên
+            S-->>V: QuerySet toàn bộ bản ghi
+        else Tài xế xem vehicles
+            S-->>V: QuerySet xe được phân công cho user trong thời gian hiện hành
+        else Tài xế xem sessions
+            S-->>V: QuerySet phiên có assignment.driver.user là user hiện tại
+        end
+    else Danh sách khác và là quản trị viên
+        V->>V: Chọn toàn bộ bản ghi của model
+    else Danh sách khác và không phải quản trị viên
+        V-->>U: 403, dừng xử lý
+    end
+    opt Được quyền xem danh sách
+        V->>V: Thêm bộ lọc tìm kiếm và trạng thái hợp lệ
+        V->>DB: Truy vấn select_related, sắp pk giảm dần, phân trang 20
+        DB-->>V: Tổng số và bản ghi của trang
+        V->>V: Tạo các ô hiển thị và liên kết theo quyền
+        V-->>U: Render list.html
+    end

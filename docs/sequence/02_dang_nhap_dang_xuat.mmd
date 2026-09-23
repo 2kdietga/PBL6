@@ -1,0 +1,26 @@
+sequenceDiagram
+    autonumber
+    actor U as Người dùng
+    participant V as SignIn / SignOut
+    participant A as Django Auth và Session
+    participant DB as Database
+    U->>V: POST /login/ (username, password)
+    V->>A: Kiểm tra thông tin đăng nhập
+    A->>DB: Tra cứu User
+    DB-->>A: Dữ liệu tài khoản
+    A->>A: Kiểm tra mật khẩu và quyền đăng nhập
+    alt Thông tin sai hoặc tài khoản không hoạt động
+        A-->>V: Lỗi xác thực
+        V-->>U: Hiển thị form đăng nhập cùng lỗi
+    else Đăng nhập hợp lệ
+        A-->>V: User đã xác thực
+        V->>A: login(request, user)
+        A-->>V: Thiết lập session
+        V-->>U: 302 tới next hợp lệ hoặc URL mặc định
+        opt Người dùng đăng xuất sau đó
+            U->>V: POST /logout/
+            V->>A: logout(request)
+            A->>A: Xóa session đăng nhập hiện tại
+            V-->>U: 302 tới /login/
+        end
+    end
