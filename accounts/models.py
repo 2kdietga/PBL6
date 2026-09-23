@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 
 
 class User(AbstractUser):
@@ -20,6 +21,7 @@ class DriverProfile(models.Model):
     class ApprovalStatus(models.TextChoices):
         PENDING = "PENDING", "Pending"
         APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
 
     user = models.OneToOneField(
         User,
@@ -88,6 +90,23 @@ class DriverLicense(models.Model):
 
     def __str__(self):
         return f"{self.license_number} - {self.license_class}"
+
+    @property
+    def is_expired(self):
+        return self.expiry_date <= timezone.localdate()
+
+    @property
+    def is_valid(self):
+        return self.status == self.Status.ACTIVE and not self.is_expired
+
+    @property
+    def effective_status(self):
+        if self.status == self.Status.ACTIVE and self.is_expired:
+            return self.Status.EXPIRED
+        return self.status
+
+    def get_effective_status_display(self):
+        return self.Status(self.effective_status).label
 
 class FaceProfile(models.Model):
     class ApprovalStatus(models.TextChoices):

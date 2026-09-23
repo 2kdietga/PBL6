@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, LogoutView
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 from accounts.models import User, DriverProfile, DriverLicense, FaceProfile
 from accounts.media_services import MediaError
 from accounts.profile_services import save_profile, save_license
+from accounts.concurrency import revision, require_revision
 from driving.models import DrivingSession
 from vehicles.models import Vehicle, VehicleType, DriverVehicleAssignment, Device
 from violations.models import ViolationType
@@ -157,8 +158,8 @@ def profile(request):
             save_profile(form, request.user)
             messages.success(request, 'Đã lưu hồ sơ.' + (' Đã tạo vector khuôn mặt và gửi chờ duyệt.' if form.cleaned_data.get('avatar') else ''))
             return redirect('frontend:profile')
-        except MediaError as exc:
-            form.add_error(None, str(exc))
+        except (MediaError, ValidationError) as exc:
+            form.add_error(None, exc if isinstance(exc, ValidationError) else str(exc))
     return page(request, 'form.html', title='Hồ sơ cá nhân', form=form, face=face, status=obj.get_approval_status_display() if obj else 'Chưa có hồ sơ', note='Ảnh đầu tiên là avatar. Có thể thêm 4 góc mặt. Ảnh được gửi đến dịch vụ nhận diện để tạo vector; avatar lưu trên Cloudinary. Đổi ảnh sẽ cần duyệt khuôn mặt lại. Mỗi ảnh tối đa 5 MB.')
 
 
@@ -176,41 +177,57 @@ def license_page(request):
             save_license(form, driver)
             messages.success(request, 'Đã lưu GPLX và gửi chờ duyệt.')
             return redirect('frontend:license')
-        except MediaError as exc:
-            form.add_error(None, str(exc))
-    return page(request, 'form.html', title='Giấy phép lái xe', form=form, license=obj, status=obj.get_status_display() if obj else 'Chưa có GPLX', note='Chọn ảnh JPG, PNG hoặc WebP từ máy, tối đa 5 MB/ảnh. Ảnh được lưu trên Cloudinary. Khi cập nhật có thể giữ ảnh cũ bằng cách không chọn ảnh mới.')
+        except (MediaError, ValidationError) as exc:
+            form.add_error(None, exc if isinstance(exc, ValidationError) else str(exc))
+    return page(request, 'form.html', title='Giấy phép lái xe', form=form, license=obj, status=obj.get_effective_status_display() if obj else 'Chưa có GPLX', note='Chọn ảnh JPG, PNG hoặc WebP từ máy, tối đa 5 MB/ảnh. Ảnh được lưu trên Cloudinary. Khi cập nhật có thể giữ ảnh cũ bằng cách không chọn ảnh mới.')
 
 
 @admin_required
 def driver_detail(request, pk):
     driver = get_object_or_404(DriverProfile.objects.select_related('user'), pk=pk)
-    return page(request, 'driver_detail.html', title=driver.full_name, driver=driver, license=DriverLicense.objects.filter(driver=driver).first(), face=FaceProfile.objects.filter(driver=driver).first())
+    license = DriverLicense.objects.filter(driver=driver).first()
+    face = FaceProfile.objects.filter(driver=driver).first()
+    return page(request, 'driver_detail.html', title=driver.full_name, driver=driver, license=license, face=face,
+                driver_version=revision(driver), license_version=revision(license), face_version=revision(face))
 
 
 @admin_required
 @require_POST
 def driver_action(request, pk):
     with transaction.atomic():
+        # Same lock order as save_profile: user -> driver -> license/face.
+        user_id = get_object_or_404(DriverProfile, pk=pk).user_id
+        user = User.objects.select_for_update().get(pk=user_id)
         driver = get_object_or_404(DriverProfile.objects.select_for_update(), pk=pk)
         action = request.POST.get('action')
-        if action == 'approve':
-            driver.approval_status = 'APPROVED'
+        target = driver
+        if action in ('face-approve', 'face-reject'):
+            target = get_object_or_404(FaceProfile.objects.select_for_update(), driver=driver)
+        elif action in ('license-approve', 'license-reject'):
+            target = get_object_or_404(DriverLicense.objects.select_for_update(), driver=driver)
+        if action not in ('enable', 'disable'):
+            try:
+                require_revision(request.POST.get('version'), target)
+            except ValidationError as exc:
+                messages.error(request, ' '.join(exc.messages))
+                return redirect('frontend:driver-detail', pk=pk)
+        if action in ('approve', 'reject'):
+            driver.approval_status = 'APPROVED' if action == 'approve' else 'REJECTED'
             driver.save(update_fields=['approval_status', 'updated_at'])
         elif action in ('enable', 'disable'):
-            user = User.objects.select_for_update().get(pk=driver.user_id)
             if user.pk == request.user.pk or is_admin(user): raise PermissionDenied
             user.is_active = action == 'enable'
             user.save(update_fields=['is_active'])
         elif action in ('face-approve', 'face-reject'):
-            face = get_object_or_404(FaceProfile.objects.select_for_update(), driver=driver)
+            face = target
             if not face.embedding:
                 messages.error(request, 'Hồ sơ chưa có vector khuôn mặt.')
                 return redirect('frontend:driver-detail', pk=pk)
             face.approval_status = 'APPROVED' if action == 'face-approve' else 'REJECTED'
             face.save(update_fields=['approval_status', 'updated_at'])
         elif action in ('license-approve', 'license-reject'):
-            obj = get_object_or_404(DriverLicense.objects.select_for_update(), driver=driver)
-            if action == 'license-approve' and obj.expiry_date <= timezone.localdate():
+            obj = target
+            if action == 'license-approve' and obj.is_expired:
                 messages.error(request, 'Không thể duyệt GPLX đã hết hạn.')
                 return redirect('frontend:driver-detail', pk=pk)
             obj.status = 'ACTIVE' if action == 'license-approve' else 'REJECTED'

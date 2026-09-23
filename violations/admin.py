@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 
 from .forms import ViolationTypeForm
-from .models import Appeal, Evidence, Violation, ViolationType
+from .models import Appeal, Evidence, Violation, ViolationType, ViolationReview
 
 
 @admin.register(ViolationType)
@@ -44,5 +44,11 @@ class EvidenceAdmin(ReadOnlyAdmin):
 
 @admin.register(Appeal)
 class AppealAdmin(ReadOnlyAdmin):
-    list_display = ('id', 'violation_id', 'status', 'created_at', 'resolved_at')
+    list_display = ('id', 'violation_id', 'status', 'created_at', 'resolved_at', 'deleted_at')
     list_filter = ('status',)
+
+
+@admin.register(ViolationReview)
+class ViolationReviewAdmin(ReadOnlyAdmin):
+    list_display = ('id', 'violation_id', 'reviewer_name', 'action', 'created_at')
+    list_filter = ('action',)

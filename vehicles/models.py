@@ -1,4 +1,5 @@
-from django.db import models
+from django.db import models, transaction
+from django.core.exceptions import ValidationError
 from accounts.models import DriverProfile
 
 class VehicleType(models.Model):
@@ -164,6 +165,17 @@ class DriverVehicleAssignment(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True,
     )
+
+    def save(self, *args, **kwargs):
+        with transaction.atomic():
+            if self.pk:
+                old = type(self).objects.select_for_update().get(pk=self.pk)
+                if old.driving_sessions.exists() and any(
+                    getattr(old, field) != getattr(self, field)
+                    for field in ('driver_id', 'vehicle_id', 'start_at')
+                ):
+                    raise ValidationError('Phân công đã có phiên lái: không được đổi tài xế, xe hoặc thời gian bắt đầu.')
+            super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.driver.full_name} - {self.vehicle.license_plate}"

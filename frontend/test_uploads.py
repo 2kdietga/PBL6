@@ -8,6 +8,7 @@ from django.test import TestCase, SimpleTestCase, override_settings
 from django.urls import reverse
 from accounts.models import User, DriverProfile, DriverLicense, FaceProfile
 from accounts.media_services import MediaError, extract_embedding
+from accounts.concurrency import revision
 from .forms import ProfileForm
 
 
@@ -22,8 +23,8 @@ class UploadTests(TestCase):
         self.user = User.objects.create_user('driver', password='Secret123!')
         self.driver = DriverProfile.objects.create(user=self.user, full_name='Minh', date_of_birth=date(1990,1,1), phone='0905111111', address='Đà Nẵng')
         self.client.force_login(self.user)
-        self.profile = dict(full_name='Minh', date_of_birth='1990-01-01', phone='0905111111', address='Đà Nẵng')
-        self.license = dict(license_number='123456', license_class='C', issued_date='2025-01-01', expiry_date='2030-01-01')
+        self.profile = dict(full_name='Minh', date_of_birth='1990-01-01', phone='0905111111', address='Đà Nẵng', version=revision(self.driver))
+        self.license = dict(license_number='123456', license_class='C', issued_date='2025-01-01', expiry_date='2030-01-01', version='new')
 
     @patch('accounts.profile_services.upload_image', return_value=('https://res.cloudinary.com/test/face.png', 'face-new'))
     @patch('accounts.profile_services.extract_embedding', return_value=[0.2, 0.4, 0.6])
@@ -36,6 +37,8 @@ class UploadTests(TestCase):
         self.assertEqual(face.cloudinary_public_id, 'face-new')
         face.approval_status = 'APPROVED'
         face.save()
+        self.driver.refresh_from_db()
+        self.profile['version'] = revision(self.driver)
         with patch('accounts.profile_services.delete_images') as cleanup, self.captureOnCommitCallbacks(execute=True):
             self.client.post(reverse('frontend:profile'), {**self.profile, 'avatar':image_file()})
         face.refresh_from_db()
@@ -62,6 +65,7 @@ class UploadTests(TestCase):
         obj = DriverLicense.objects.get(driver=self.driver)
         self.assertEqual(obj.front_image_public_id, 'front-new')
         self.assertEqual(obj.back_image_public_id, 'back-new')
+        self.license['version'] = revision(obj)
         self.client.post(reverse('frontend:license'), self.license)
         obj.refresh_from_db()
         self.assertEqual(obj.front_image_public_id, 'front-new')

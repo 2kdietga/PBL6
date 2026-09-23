@@ -11,6 +11,7 @@ from frontend.views import admin_required, display_date, is_admin, page
 from .forms import ViolationReviewForm
 from .models import Violation
 from .services import review_violation
+from accounts.concurrency import revision
 
 
 def visible_violations(user):
@@ -52,7 +53,8 @@ def detail_page(request, violation, form=None):
     if form is None and is_admin(request.user):
         form = ViolationReviewForm(instance=violation)
     return page(request, 'violation_detail.html', title=f'Vi phạm VP-{violation.pk}',
-                violation=violation, evidences=violation.evidences.all(), form=form,
+                violation=violation, evidences=violation.evidences.all(), form=form, version=revision(violation),
+                reviews=violation.reviews.all() if is_admin(request.user) else [],
                 can_reopen=violation.status != 'PENDING' and not hasattr(violation, 'appeal'))
 
 
@@ -66,7 +68,7 @@ def detail(request, pk):
 def review(request, pk):
     violation = get_object_or_404(visible_violations(request.user), pk=pk)
     try:
-        form = review_violation(pk, request.POST)
+        form = review_violation(pk, request.POST, request.user)
     except ValidationError as exc:
         messages.error(request, ' '.join(exc.messages))
     else:

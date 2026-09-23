@@ -61,18 +61,27 @@ Các module `static/js/`, `static/app.js` và bộ kiểm thử Node cũ là mã
 
 ```text
 python manage.py check
-python manage.py test frontend.tests frontend.test_uploads config.test_frontend violations --settings=config.test_settings
+python manage.py test frontend.tests frontend.test_uploads frontend.test_consistency config.test_frontend violations driving --settings=config.test_settings
 ```
 
-Bộ test dùng SQLite trong bộ nhớ, không thay đổi database PostgreSQL hiện tại. Chạy `python manage.py migrate` để tạo bốn bảng của app `violations` trước khi dùng trang vi phạm.
+Bộ test dùng SQLite trong bộ nhớ, không thay đổi database PostgreSQL hiện tại. Chạy `python manage.py migrate` để áp dụng schema hiện tại. Migration phiên lái lấy vehicle từ phân công; nếu dữ liệu cũ có nhiều phiên STARTED cho cùng xe hoặc sai thời gian/trạng thái, migration dừng để kiểm tra thay vì tự sửa lịch sử.
+
+## Bảo vệ dữ liệu khi cập nhật
+
+- Django admin dùng UserAdmin và form mật khẩu của Django cho custom User. Không tự sửa mật khẩu của tài khoản đã tồn tại.
+- Form hồ sơ/GPLX và thao tác duyệt hồ sơ/khuôn mặt/GPLX gửi version của bản ghi đã xem. Backend kiểm tra trước khi xử lý và kiểm tra lại dưới khóa transaction trước khi lưu. Trang cũ phải tải lại; ảnh mới upload được dọn nếu phát hiện xung đột.
+- Hồ sơ hỗ trợ PENDING/APPROVED/REJECTED. Admin có thể từ chối hồ sơ chờ duyệt; tài xế lưu lại hồ sơ bị từ chối sẽ đưa về PENDING.
+- GPLX có `effective_status` và `is_valid`, kiểm tra ngày hết hạn khi hiển thị/sử dụng thay vì chỉ tin status ACTIVE. Quy ước hiện tại: `expiry_date <= hôm nay` là hết hạn.
+- Cho phép kết thúc/rút ngắn phân công cũ khi tài xế bị khóa, hồ sơ chưa duyệt hoặc xe ngừng hoạt động. Tạo mới/gia hạn vẫn kiểm tra đủ điều kiện. Phân công đã có phiên lái không đổi tài xế, xe hoặc thời gian bắt đầu.
+- DrivingSession lưu vehicle từ phân công để có UNIQUE có điều kiện cho mỗi xe ở trạng thái STARTED. CHECK ràng buộc STARTED không có ended_at, ENDED có ended_at >= started_at. Model save không cho đổi phân công/xe hoặc sửa phiên đã ENDED. Không dùng bulk update để đổi liên kết lịch sử vì nó bỏ qua validation của model.
 
 ## Khung vi phạm
 
 `Violation` liên kết `DrivingSession` và `ViolationType`; tài xế/xe được lấy qua phân công của phiên lái, không lưu trùng. `Evidence` lưu loại IMAGE/VIDEO, URL HTTPS, public ID Cloudinary và thời điểm ghi nhận. `Appeal` chuẩn bị quan hệ một kháng cáo cho mỗi vi phạm. Database bảo vệ tham chiếu phiên lái/loại vi phạm, ràng buộc trạng thái, mức độ và mã loại không trùng (không phân biệt hoa thường).
 
-Admin chỉ xác nhận hoặc từ chối bản ghi PENDING, có thể sửa loại/mức độ/ghi chú nhưng không thay đổi phiên lái hay thời điểm phát hiện. Xác nhận yêu cầu ít nhất một Evidence. Bản ghi thiếu bằng chứng vẫn có thể ở PENDING để hỗ trợ luồng upload bổ sung sau này. Xem xét lại đưa bản ghi đã xử lý về PENDING và giữ bằng chứng. Thao tác dùng POST/CSRF và khóa bản ghi trong transaction để tránh xử lý đồng thời. Django admin chỉ xem Violation/Evidence/Appeal; quản lý ViolationType và mở liên kết tới trang xác nhận.
+Admin chỉ xác nhận hoặc từ chối bản ghi PENDING, có thể sửa loại/mức độ/ghi chú nhưng không thay đổi phiên lái hay thời điểm phát hiện. Xác nhận yêu cầu ít nhất một Evidence và tất cả metadata bằng chứng phải hợp lệ, gồm URL HTTPS. Không tự tải file từ URL ngoài để kiểm tra nội dung hay khả năng truy cập. Bản ghi thiếu bằng chứng vẫn có thể ở PENDING để bổ sung sau này. Xem xét lại đưa bản ghi đã xử lý về PENDING và giữ bằng chứng. Thao tác dùng POST/CSRF, kiểm tra version và khóa bản ghi trong transaction. Mỗi quyết định tạo ViolationReview với người xử lý, thời điểm, thông tin trước/sau trong cùng transaction; lịch sử chỉ hiện cho admin. Không dựng lại lịch sử cho các quyết định trước khi có tính năng này. Django admin chỉ xem Violation/Evidence/Appeal/ViolationReview; quản lý ViolationType và mở liên kết tới trang xác nhận.
 
-Phần AI sau này cần bổ sung xác thực thiết bị, đối chiếu session/driver/vehicle, kiểm tra phiên STARTED, nhận/upload bằng chứng và xử lý lỗi. Chưa có đường nhận dữ liệu AI trong đợt này. Khung kháng cáo chưa xử lý quy tắc một lần suốt đời sau khi xóa; chưa mở thao tác xóa kháng cáo. Chưa có thao tác xóa vi phạm hoặc dọn file bằng chứng Cloudinary.
+Phần AI sau này cần bổ sung xác thực thiết bị, đối chiếu session/driver/vehicle, kiểm tra phiên STARTED, nhận/upload bằng chứng và xử lý lỗi. Chưa có đường nhận dữ liệu AI trong đợt này. Appeal.delete() và QuerySet.delete() xóa mềm bằng deleted_at, giữ bản ghi và OneToOne để không cho kháng cáo lần hai. Manager vẫn gồm bản ghi đã lưu trữ; giao diện tương lai cần lọc deleted_at cho danh sách hiển thị. Xóa Violation qua ORM vẫn xóa cascade cả Appeal đã lưu trữ. Chưa mở giao diện gửi/xử lý/xóa kháng cáo, xóa vi phạm hoặc dọn file bằng chứng Cloudinary.
 
 ## Upload và embedding
 
@@ -80,7 +89,7 @@ Cài thư viện bằng `python -m pip install -r requirements.txt`. Cloudinary 
 
 Sau khi đăng ký, tài xế được chuyển đến trang hồ sơ để điền thông tin và chọn avatar. Ảnh đầu tiên lưu làm ảnh đại diện trong `FaceProfile.face_image_url`; có thể chọn thêm tối đa 4 ảnh để cải thiện vector. Cả 1–5 ảnh gửi đến API theo notebook `mẫu.ipynb`: POST multipart với tên trường lặp lại `files`, lấy mảng `vector` trong JSON. Ảnh góc mặt bổ sung chỉ phục vụ tạo vector, không lưu lâu dài; model hiện có một ảnh khuôn mặt hiện tại.
 
-Endpoint mặc định là `https://aiwho-embeddingresnet34.hf.space/extract_profile`, có thể đổi qua `FACE_EMBEDDING_URL` trong môi trường. Mỗi ảnh phải là JPG/PNG/WebP thực, tối đa 5 MB và 20 megapixel. Không nhận vector do trình duyệt gửi lên; server tự gọi API. Vector lưu vào JSONField có sẵn, chưa chuyển sang pgvector.
+Endpoint đọc từ `FACE_EMBEDDING_URL` trong môi trường; cần cấu hình trước khi upload khuôn mặt. Mỗi ảnh phải là JPG/PNG/WebP thực, tối đa 5 MB và 20 megapixel. Không nhận vector do trình duyệt gửi lên; server tự gọi API. Vector lưu vào JSONField có sẵn, chưa chuyển sang pgvector.
 
 Thay avatar sẽ tạo lại vector và đưa FaceProfile về PENDING. Không chọn ảnh mới thì giữ ảnh/vector cũ. Admin xem ảnh và vector, duyệt/từ chối tại chi tiết tài xế. GPLX lần đầu cần đủ hai mặt; lần sau có thể chỉ thay một mặt. Database lưu cả HTTPS URL và public ID của Cloudinary.
 

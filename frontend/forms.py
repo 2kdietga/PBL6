@@ -3,6 +3,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.utils import timezone
 from accounts.models import User, DriverProfile, DriverLicense
 from vehicles.models import Vehicle, VehicleType, Device, DriverVehicleAssignment
+from accounts.concurrency import revision, require_revision
 
 
 class UploadImageField(forms.ImageField):
@@ -44,7 +45,20 @@ class RegisterForm(UserCreationForm):
         fields = ('username', 'email')
 
 
-class ProfileForm(forms.ModelForm):
+class VersionedModelForm(forms.ModelForm):
+    version = forms.CharField(widget=forms.HiddenInput)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.initial['version'] = revision(self.instance)
+
+    def clean(self):
+        values = super().clean()
+        require_revision(values.get('version'), self.instance)
+        return values
+
+
+class ProfileForm(VersionedModelForm):
     avatar = UploadImageField(label='Ảnh đại diện / khuôn mặt', required=False)
     extra_images = ExtraImagesField(label='Ảnh góc mặt bổ sung (tối đa 4)', required=False)
 
@@ -66,7 +80,7 @@ class ProfileForm(forms.ModelForm):
         return value
 
 
-class LicenseForm(forms.ModelForm):
+class LicenseForm(VersionedModelForm):
     front_image = UploadImageField(label='Ảnh GPLX mặt trước', required=False)
     back_image = UploadImageField(label='Ảnh GPLX mặt sau', required=False)
 
@@ -138,12 +152,16 @@ class AssignmentForm(forms.ModelForm):
         if start and end and end <= start:
             self.add_error('end_at', 'Thời gian kết thúc phải sau thời gian bắt đầu.')
         vehicle, driver = values.get('vehicle'), values.get('driver')
-        if vehicle and vehicle.status != 'ACTIVE':
+        old = DriverVehicleAssignment.objects.filter(pk=self.instance.pk).first() if self.instance.pk else None
+        same_assignment = bool(old and driver and vehicle and old.driver_id == driver.pk
+                               and old.vehicle_id == vehicle.pk and old.start_at == start)
+        # Ending/shortening an existing assignment must remain possible after suspension.
+        closing = same_assignment and end is not None and (old.end_at is None or end <= old.end_at)
+        if not closing and vehicle and vehicle.status != 'ACTIVE':
             self.add_error('vehicle', 'Chỉ phân công xe đang hoạt động.')
-        if driver and (not driver.user.is_active or driver.approval_status != 'APPROVED'):
+        if not closing and driver and (not driver.user.is_active or driver.approval_status != 'APPROVED'):
             self.add_error('driver', 'Tài xế phải đang hoạt động và hồ sơ đã được duyệt.')
         if self.instance.pk and self.instance.driving_sessions.exists():
-            old = DriverVehicleAssignment.objects.get(pk=self.instance.pk)
             if driver and vehicle and (old.driver_id != driver.pk or old.vehicle_id != vehicle.pk or old.start_at != start):
                 raise forms.ValidationError('Phân công đã có phiên lái: chỉ cập nhật thời gian kết thúc để giữ lịch sử.')
         return values

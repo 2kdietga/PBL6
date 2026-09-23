@@ -1,6 +1,6 @@
 # Sơ đồ lớp theo mã nguồn hiện tại
 
-9 model nghiệp vụ; AbstractUser là lớp cha của Django. Các lớp vi phạm trong README chưa được triển khai. Chi tiết thuộc tính, quan hệ và quy tắc nghiệp vụ: `mo_ta_so_do_lop.docx`.
+14 model nghiệp vụ trong accounts, vehicles, driving và violations; AbstractUser là lớp cha của Django. Chi tiết thuộc tính, quan hệ và quy tắc nghiệp vụ: `mo_ta_so_do_lop.docx`.
 
 Sao chép nội dung `so_do_lop.mmd` vào trình biên tập Mermaid, hoặc xem khối dưới đây trên trình đọc Markdown hỗ trợ Mermaid.
 
@@ -26,7 +26,7 @@ AbstractUser <|-- User
 class User {
     +BigInt id
     +String role
-    +__str__() String
+    +__str__()
 }
 class DriverProfile {
     +BigInt id
@@ -38,7 +38,7 @@ class DriverProfile {
     +String approval_status
     +DateTime created_at
     +DateTime updated_at
-    +__str__() String
+    +__str__()
 }
 class DriverLicense {
     +BigInt id
@@ -54,7 +54,11 @@ class DriverLicense {
     +String status
     +DateTime created_at
     +DateTime updated_at
-    +__str__() String
+    +__str__()
+    +is_expired()
+    +is_valid()
+    +effective_status()
+    +get_effective_status_display()
 }
 class FaceProfile {
     +BigInt id
@@ -65,7 +69,7 @@ class FaceProfile {
     +String approval_status
     +DateTime created_at
     +DateTime updated_at
-    +__str__() String
+    +__str__()
 }
 class VehicleType {
     +BigInt id
@@ -74,7 +78,7 @@ class VehicleType {
     +Text description
     +DateTime created_at
     +DateTime updated_at
-    +__str__() String
+    +__str__()
 }
 class Vehicle {
     +BigInt id
@@ -89,7 +93,7 @@ class Vehicle {
     +Text description
     +DateTime created_at
     +DateTime updated_at
-    +__str__() String
+    +__str__()
 }
 class Device {
     +BigInt id
@@ -100,7 +104,7 @@ class Device {
     +DateTime last_seen_at
     +DateTime created_at
     +DateTime updated_at
-    +__str__() String
+    +__str__()
 }
 class DriverVehicleAssignment {
     +BigInt id
@@ -110,17 +114,78 @@ class DriverVehicleAssignment {
     +DateTime end_at
     +DateTime created_at
     +DateTime updated_at
-    +__str__() String
+    +save()
+    +__str__()
 }
 class DrivingSession {
     +BigInt id
     +BigInt assignment_id
+    +BigInt vehicle_id
     +DateTime started_at
     +DateTime ended_at
     +String status
     +DateTime created_at
     +DateTime updated_at
-    +__str__() String
+    +clean()
+    +save()
+    +__str__()
+}
+class ViolationType {
+    +BigInt id
+    +String code
+    +String name
+    +Text description
+    +DateTime created_at
+    +DateTime updated_at
+    +normalize_code()
+    +save()
+    +__str__()
+}
+class Violation {
+    +BigInt id
+    +BigInt session_id
+    +BigInt violation_type_id
+    +String severity
+    +DateTime detected_at
+    +String status
+    +Text admin_note
+    +DateTime created_at
+    +DateTime updated_at
+    +__str__()
+}
+class Evidence {
+    +BigInt id
+    +BigInt violation_id
+    +String type
+    +URL url
+    +String cloudinary_public_id
+    +DateTime captured_at
+    +safe_url()
+    +__str__()
+}
+class Appeal {
+    +BigInt id
+    +BigInt violation_id
+    +Text content
+    +String status
+    +Text admin_response
+    +DateTime created_at
+    +DateTime updated_at
+    +DateTime resolved_at
+    +DateTime deleted_at
+    +__str__()
+    +delete()
+}
+class ViolationReview {
+    +BigInt id
+    +BigInt violation_id
+    +BigInt reviewer_id
+    +String reviewer_name
+    +String action
+    +JSON before
+    +JSON after
+    +DateTime created_at
+    +__str__()
 }
 User "1" -- "0..1" DriverProfile : user
 DriverProfile "1" -- "0..1" DriverLicense : driver
@@ -130,6 +195,13 @@ Vehicle "1" -- "0..1" Device : vehicle
 DriverProfile "1" -- "0..*" DriverVehicleAssignment : driver
 Vehicle "1" -- "0..*" DriverVehicleAssignment : vehicle
 DriverVehicleAssignment "1" -- "0..*" DrivingSession : assignment
+Vehicle "1" -- "0..*" DrivingSession : vehicle
+DrivingSession "1" -- "0..*" Violation : session
+ViolationType "1" -- "0..*" Violation : violation_type
+Violation "1" -- "0..*" Evidence : violation
+Violation "1" -- "0..1" Appeal : violation
+Violation "1" -- "0..*" ViolationReview : violation
+User "1" -- "0..*" ViolationReview : reviewer
 ```
 
 Tạo lại tài liệu từ thư mục gốc dự án: `python docs/generate_class_docs.py`.

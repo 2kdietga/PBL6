@@ -1,5 +1,7 @@
 # Hệ thống quản lý và giám sát tài xế lái xe
 
+> **Hiện trạng 23/09/2026:** Đã có web Django cho tài khoản, hồ sơ/GPLX/khuôn mặt, xe/phân công/thiết bị, xem phiên lái và xem/xác nhận vi phạm. Đã có 14 model, gồm lịch sử duyệt `ViolationReview`. Form hồ sơ và duyệt kiểm tra phiên bản dữ liệu; GPLX tính hiệu lực theo ngày; phiên lái có ràng buộc trạng thái/thời gian và một phiên STARTED cho mỗi xe. Kháng cáo mới có database và cơ chế xóa mềm để giữ quyền kháng cáo một lần. Nhận dữ liệu AI, xác thực trước phiên và giao diện kháng cáo chưa triển khai. Các phần dưới gồm cả thiết kế/lộ trình; xem `FRONTEND.md` để biết chức năng đang hoạt động.
+
 ## 1. Giới thiệu
 
 Đồ án xây dựng hệ thống quản lý và giám sát tài xế cho một công ty vận tải.
@@ -763,7 +765,7 @@ Tài xế chỉ được kháng cáo Violation đã được Admin `APPROVED`. S
 
 `admin_response` có thể `NULL`. Khi Admin xử lý Appeal, Server ghi thời điểm vào `resolved_at`. Appeal đã xử lý vẫn có thể được Admin sửa thủ công `status` và `admin_response`. Việc thay đổi Appeal sau khi xử lý chưa quy định cách tự động đồng bộ lại trạng thái Violation.
 
-Admin có thể xóa Appeal thủ công. Việc xóa Appeal không làm thay đổi trạng thái Violation và không mở lại quyền Appeal lần nữa.
+Thiết kế cho phép Admin xóa Appeal thủ công bằng **xóa mềm** (`deleted_at`): giữ bản ghi và ràng buộc OneToOne, không thay đổi trạng thái Violation và không mở lại quyền Appeal. Chưa mở thao tác này trên giao diện.
 
 Nếu Appeal được `APPROVED`, Violation chuyển từ `APPROVED` sang `REVOKED`. Nếu Appeal bị `REJECTED`, Violation vẫn `APPROVED`. Khi Violation `REVOKED`, Driver không còn nhìn thấy Violation, Evidence hoặc Appeal; Admin vẫn xem được dữ liệu.
 

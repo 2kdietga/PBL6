@@ -2,6 +2,8 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator, URLValidator
 from django.db import models
 from django.db.models.functions import Lower
+from django.conf import settings
+from django.utils import timezone
 
 
 class ViolationType(models.Model):
@@ -90,6 +92,12 @@ class Evidence(models.Model):
         return f'{self.get_type_display()} · VP-{self.violation_id}'
 
 
+class AppealQuerySet(models.QuerySet):
+    def delete(self):
+        count = self.filter(deleted_at__isnull=True).update(deleted_at=timezone.now())
+        return count, {self.model._meta.label: count}
+
+
 class Appeal(models.Model):
     class Status(models.TextChoices):
         PENDING = 'PENDING', 'Chờ xử lý'
@@ -103,6 +111,10 @@ class Appeal(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
+    deleted_at = models.DateTimeField(null=True, blank=True, editable=False)
+    # Keep archived rows in the manager and OneToOne constraint: deletion never
+    # grants a second appeal. Cascade from a deleted violation still removes them.
+    objects = AppealQuerySet.as_manager()
 
     class Meta:
         ordering = ['-created_at', '-pk']
@@ -110,3 +122,29 @@ class Appeal(models.Model):
 
     def __str__(self):
         return f'Kháng cáo VP-{self.violation_id}'
+
+    def delete(self, using=None, keep_parents=False):
+        result = type(self).objects.using(using or self._state.db).filter(pk=self.pk).delete()
+        self.refresh_from_db()
+        return result
+
+
+class ViolationReview(models.Model):
+    class Action(models.TextChoices):
+        APPROVE = 'approve', 'Xác nhận'
+        REJECT = 'reject', 'Từ chối'
+        REOPEN = 'reopen', 'Xem xét lại'
+
+    violation = models.ForeignKey(Violation, on_delete=models.CASCADE, related_name='reviews')
+    reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, editable=False)
+    reviewer_name = models.CharField(max_length=150)
+    action = models.CharField(max_length=10, choices=Action.choices)
+    before = models.JSONField()
+    after = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-pk']
+
+    def __str__(self):
+        return f'VP-{self.violation_id} · {self.get_action_display()}'

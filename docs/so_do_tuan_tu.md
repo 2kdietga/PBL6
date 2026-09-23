@@ -348,4 +348,6 @@ Phân công hiện hành có `start_at <= now` và (`end_at IS NULL` hoặc `end
 
 ## Phạm vi chưa triển khai
 
-Chưa vẽ luồng bắt đầu/kết thúc phiên lái, xác thực khuôn mặt trước khi lái, nhận vi phạm từ AI, duyệt vi phạm hoặc gửi/xử lý kháng cáo như chức năng đang hoạt động. `DrivingSession` hiện được dùng để xem dữ liệu; `/violations/` và `/appeals/` trỏ tới trang `deferred`. Tạo embedding khi lưu hồ sơ ở sơ đồ 3 không phải là xác thực danh tính trước phiên lái.
+Chưa triển khai luồng bắt đầu/kết thúc phiên lái từ thiết bị, xác thực khuôn mặt trước khi lái, nhận vi phạm từ AI hoặc gửi/xử lý kháng cáo. `DrivingSession` hiện được dùng để xem dữ liệu; `/appeals/` vẫn trỏ tới trang `deferred`. `/violations/` đã có danh sách/chi tiết/xác nhận/từ chối/xem xét lại và lịch sử `ViolationReview`; các sơ đồ phía trên chưa mô tả luồng mới này. Tạo embedding khi lưu hồ sơ ở sơ đồ 3 không phải là xác thực danh tính trước phiên lái.
+
+Cập nhật 23/09/2026 cho sơ đồ lưu/duyệt hồ sơ: form gửi thêm version của bản ghi đã xem; kiểm tra trước xử lý và kiểm tra lại dưới khóa transaction. Nếu version không khớp thì trả lỗi yêu cầu tải lại, dọn ảnh vừa upload nếu có và giữ dữ liệu mới nhất. Duyệt hồ sơ/GPLX/khuôn mặt cũng kiểm tra version tương ứng. Khóa khi duyệt theo thứ tự User → DriverProfile → FaceProfile/DriverLicense.

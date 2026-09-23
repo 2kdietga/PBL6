@@ -1,6 +1,7 @@
 from django.db import transaction
 from .models import User, DriverProfile, FaceProfile, DriverLicense
 from .media_services import extract_embedding, upload_image, delete_images
+from .concurrency import require_revision
 
 
 def save_profile(form, user):
@@ -15,11 +16,12 @@ def save_profile(form, user):
             User.objects.select_for_update().get(pk=user.pk)
             profile = form.save(commit=False)
             existing = DriverProfile.objects.select_for_update().filter(user=user).first()
+            require_revision(form.cleaned_data.get('version'), existing)
             if existing:
                 profile.pk = existing.pk
                 profile.approval_status = existing.approval_status
             profile.user = user
-            if not profile.pk or {'full_name', 'date_of_birth'} & set(form.changed_data):
+            if not profile.pk or profile.approval_status == 'REJECTED' or {'full_name', 'date_of_birth'} & set(form.changed_data):
                 profile.approval_status = 'PENDING'
             profile.save()
             if avatar:
@@ -50,6 +52,7 @@ def save_license(form, driver):
         with transaction.atomic():
             type(driver).objects.select_for_update().get(pk=driver.pk)
             previous = DriverLicense.objects.select_for_update().filter(driver=driver).first()
+            require_revision(form.cleaned_data.get('version'), previous)
             saved = form.save(commit=False)
             saved.driver, saved.status = driver, 'PENDING'
             old_ids = []

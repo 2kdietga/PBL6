@@ -3,6 +3,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
 from accounts.models import User, DriverProfile, DriverLicense
+from accounts.concurrency import revision
 from vehicles.models import VehicleType, Vehicle, DriverVehicleAssignment, Device
 from driving.models import DrivingSession
 
@@ -82,11 +83,12 @@ class DynamicPageTests(TestCase):
 
     def test_profile_updates_only_current_driver_and_reapproval(self):
         self.client.force_login(self.user)
-        payload = dict(full_name=self.driver.full_name, date_of_birth='1990-01-01', phone='0905222222', address='Đà Nẵng', user=self.other.pk, approval_status='APPROVED')
+        payload = dict(full_name=self.driver.full_name, date_of_birth='1990-01-01', phone='0905222222', address='Đà Nẵng', user=self.other.pk, approval_status='APPROVED', version=revision(self.driver))
         self.client.post(self.url('profile'), payload)
         self.driver.refresh_from_db()
         self.assertEqual(self.driver.approval_status, 'APPROVED')
         payload['full_name'] = 'Tên mới'
+        payload['version'] = revision(self.driver)
         self.client.post(self.url('profile'), payload)
         self.driver.refresh_from_db()
         self.assertEqual(self.driver.approval_status, 'PENDING')
@@ -96,21 +98,22 @@ class DynamicPageTests(TestCase):
         user = User.objects.create_user('fresh', password='Secret123!')
         self.client.force_login(user)
         self.assertRedirects(self.client.get(self.url('license')), self.url('profile'))
-        self.client.post(self.url('profile'), dict(full_name='Tài xế mới', date_of_birth='1990-02-02', phone='0905000001', address='Đà Nẵng'))
+        self.client.post(self.url('profile'), dict(full_name='Tài xế mới', date_of_birth='1990-02-02', phone='0905000001', address='Đà Nẵng', version='new'))
         driver = DriverProfile.objects.get(user=user)
         self.assertEqual(driver.approval_status, 'PENDING')
-        payload = dict(license_number='UNIQUE123', license_class='C', issued_date='2025-01-01', expiry_date='2030-01-01', front_image_url='https://example.com/front.jpg', back_image_url='https://example.com/back.jpg')
+        payload = dict(license_number='UNIQUE123', license_class='C', issued_date='2025-01-01', expiry_date='2030-01-01', front_image_url='https://example.com/front.jpg', back_image_url='https://example.com/back.jpg', version='new')
         from unittest.mock import patch
         from .test_uploads import image_file
         with patch('accounts.profile_services.upload_image', side_effect=[('https://example.com/front.jpg', 'front-id'), ('https://example.com/back.jpg', 'back-id')]):
             self.assertRedirects(self.client.post(self.url('license'), {**payload, 'front_image': image_file(), 'back_image': image_file()}), self.url('license'))
         obj = DriverLicense.objects.get(driver=driver)
         self.client.force_login(self.admin)
-        self.client.post(self.url('driver-action', driver.pk), {'action':'license-approve'})
+        self.client.post(self.url('driver-action', driver.pk), {'action':'license-approve', 'version':revision(obj)})
         obj.refresh_from_db()
         self.assertEqual(obj.status, 'ACTIVE')
         self.client.force_login(user)
         payload['license_class'] = 'D'
+        payload['version'] = revision(obj)
         self.client.post(self.url('license'), payload)
         obj.refresh_from_db()
         self.assertEqual(obj.status, 'PENDING')

@@ -35,13 +35,24 @@
   <div class="card-body">
     {% if violation.status == 'PENDING' %}
     <form method="post" action="{% url 'frontend:violation-review' violation.pk %}">
-      {% csrf_token %}{% include 'includes/fields.html' %}
+      {% csrf_token %}<input type="hidden" name="version" value="{{ version }}">{% include 'includes/fields.html' %}
       <div class="form-actions"><button class="button danger" name="action" value="reject" data-confirm="Từ chối vi phạm này?">Từ chối</button><button class="button primary" name="action" value="approve" data-confirm="Xác nhận vi phạm này?">Xác nhận vi phạm</button></div>
     </form>
     {% elif can_reopen %}
     <p>Vi phạm đã được xử lý. Chọn xem xét lại để đưa về trạng thái chờ xác nhận.</p>
-    <form method="post" action="{% url 'frontend:violation-review' violation.pk %}">{% csrf_token %}<button class="button" name="action" value="reopen" data-confirm="Đưa vi phạm về trạng thái chờ xác nhận?">Xem xét lại</button></form>
+    <form method="post" action="{% url 'frontend:violation-review' violation.pk %}">{% csrf_token %}<input type="hidden" name="version" value="{{ version }}"><button class="button" name="action" value="reopen" data-confirm="Đưa vi phạm về trạng thái chờ xác nhận?">Xem xét lại</button></form>
     {% else %}<p>Vi phạm đã có kháng cáo. Chức năng xử lý kháng cáo sẽ được bổ sung sau.</p>{% endif %}
+  </div>
+</section>
+<section class="card">
+  <div class="card-header"><h2>Lịch sử xử lý</h2></div>
+  <div class="card-body">
+    {% for review in reviews %}
+    <article><p><strong>{{ review.get_action_display }}</strong> · {{ review.reviewer_name }} · {{ review.created_at|date:'d/m/Y H:i:s' }}</p>
+      <p>{{ review.after.type_name }} · {{ review.after.severity }}</p>
+      {% if review.after.admin_note %}<p>{{ review.after.admin_note|linebreaksbr }}</p>{% endif %}
+    </article>
+    {% empty %}<p class="empty">Chưa có lịch sử xử lý được ghi nhận.</p>{% endfor %}
   </div>
 </section>
 {% endif %}

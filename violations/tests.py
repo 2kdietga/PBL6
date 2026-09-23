@@ -7,9 +7,11 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import DriverProfile, User
+from accounts.concurrency import revision
 from driving.models import DrivingSession
 from vehicles.models import DriverVehicleAssignment, Vehicle, VehicleType
 from .models import Appeal, Evidence, Violation, ViolationType
+from .models import ViolationReview
 
 
 class ViolationTests(TestCase):
@@ -31,7 +33,7 @@ class ViolationTests(TestCase):
         return reverse('frontend:' + name, args=args)
 
     def review(self, **overrides):
-        payload = dict(action='approve', violation_type=self.kind.pk, severity='MEDIUM', admin_note='Đã kiểm tra')
+        payload = dict(action='approve', violation_type=self.kind.pk, severity='MEDIUM', admin_note='Đã kiểm tra', version=revision(Violation.objects.get(pk=self.violation.pk)))
         payload.update(overrides)
         return self.client.post(self.url('violation-review', self.violation.pk), payload)
 
@@ -176,3 +178,45 @@ class ViolationTests(TestCase):
         self.assertEqual(self.client.post(self.url('create', 'violations'), {}).status_code, 403)
         Violation.objects.all().delete()
         self.assertContains(self.client.get(self.url('violations')), 'Chưa có dữ liệu phù hợp.')
+
+    def test_invalid_evidence_blocks_approval_and_creates_no_history(self):
+        self.evidence.url = 'javascript:alert(1)'
+        self.evidence.save()
+        self.client.force_login(self.admin)
+        self.assertContains(self.review(), 'đường dẫn không hợp lệ')
+        self.violation.refresh_from_db()
+        self.assertEqual(self.violation.status, 'PENDING')
+        self.assertFalse(ViolationReview.objects.exists())
+
+    def test_audit_preserves_actor_and_previous_decision_after_reopen(self):
+        self.client.force_login(self.admin)
+        old_version = revision(self.violation)
+        self.review()
+        self.review(action='reopen')
+        self.review(action='reject', version=old_version)
+        self.violation.refresh_from_db()
+        self.assertEqual(self.violation.status, 'PENDING')
+        history = list(self.violation.reviews.order_by('pk'))
+        self.assertEqual([item.action for item in history], ['approve', 'reopen'])
+        self.assertEqual(history[0].reviewer_id, self.admin.pk)
+        self.assertEqual(history[0].before['severity'], 'HIGH')
+        self.assertEqual(history[0].after['severity'], 'MEDIUM')
+        self.assertEqual(history[0].after['status'], 'APPROVED')
+        self.kind.name = 'Renamed'
+        self.kind.save()
+        history[0].refresh_from_db()
+        self.assertNotEqual(history[0].after['type_name'], self.kind.name)
+        self.assertContains(self.client.get(self.url('violation-detail', self.violation.pk)), 'Lịch sử xử lý')
+        self.client.force_login(self.driver)
+        self.assertNotContains(self.client.get(self.url('violation-detail', self.violation.pk)), 'Lịch sử xử lý')
+
+    def test_archived_appeal_still_prevents_second_appeal(self):
+        appeal = Appeal.objects.create(violation=self.violation, content='Original content')
+        appeal.delete()
+        self.assertIsNotNone(appeal.deleted_at)
+        self.assertEqual(Appeal.objects.get(pk=appeal.pk).content, 'Original content')
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Appeal.objects.create(violation=self.violation, content='Second attempt')
+        self.assertEqual(Appeal.objects.filter(pk=appeal.pk).delete()[0], 0)
+        self.violation.delete()
+        self.assertFalse(Appeal.objects.exists())
