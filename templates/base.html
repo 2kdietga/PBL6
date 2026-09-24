@@ -4,18 +4,35 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f7f9">
   <title>{{ title }} · SaveLife</title>
   <link rel="stylesheet" href="{% static 'app.css' %}">
   <link rel="stylesheet" href="{% static 'css/server.css' %}">
   <script src="{% static 'server.js' %}" defer></script>
 </head>
-<body>
+<body{% if not user.is_authenticated %} class="guest-layout"{% endif %}>
   <a class="skip" href="#main">Đến nội dung chính</a>
-{% include 'includes/sidebar.html' %}
+  {% include 'includes/sidebar.html' %}
+  <button class="nav-backdrop" type="button" aria-label="Đóng menu" tabindex="-1" hidden></button>
   <div class="shell">
-    <header class="topbar"><button class="icon-button mobile-toggle" id="menu" aria-label="Mở menu" aria-expanded="false">☰</button><span>{{ title }}</span><div class="topbar-right">{% if user.is_authenticated %}<span>{{ user.username }} · {% if is_admin %}Quản trị viên{% else %}Tài xế{% endif %}</span><form method="post" action="{% url 'frontend:logout' %}">{% csrf_token %}<button class="button">Đăng xuất</button></form>{% else %}<a href="{% url 'frontend:login' %}">Đăng nhập</a>{% endif %}</div></header>
-    <main id="main" tabindex="-1">{% for message in messages %}<div class="notice {{ message.tags }}" role="status">{{ message }}</div>{% endfor %}{% block content %}{% endblock %}</main>
-{% include 'includes/footer.html' %}
+    <header class="topbar">
+      <div class="topbar-start">
+        {% if user.is_authenticated %}<button class="icon-button mobile-toggle" id="menu" type="button" aria-label="Mở menu" aria-controls="sidebar" aria-expanded="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>{% endif %}
+        <a class="mobile-brand" href="{% url 'frontend:home' %}">SaveLife</a>
+        <span class="breadcrumb">{{ title }}</span>
+      </div>
+      <div class="topbar-right">
+        {% if user.is_authenticated %}
+        <a class="account-summary" href="{% url 'frontend:password-change' %}" aria-label="Tài khoản {{ user.username }} — đổi mật khẩu"><span class="account-avatar" aria-hidden="true">{{ user.username|first|upper }}</span><div><strong>{{ user.username }}</strong><small>{% if is_admin %}Quản trị viên{% else %}Tài xế{% endif %}</small></div></a>
+        <form method="post" action="{% url 'frontend:logout' %}">{% csrf_token %}<button class="button subtle">Đăng xuất</button></form>
+        {% else %}<span class="guest-caption">Quản lý vận tải</span>{% endif %}
+      </div>
+    </header>
+    <main id="main" tabindex="-1">
+      {% for message in messages %}<div class="notice flash {{ message.tags }}" role="{% if message.tags == 'error' %}alert{% else %}status{% endif %}"><span>{{ message }}</span><button type="button" class="dismiss-notice" aria-label="Đóng thông báo">×</button></div>{% endfor %}
+      {% block content %}{% endblock %}
+    </main>
+    {% include 'includes/footer.html' %}
   </div>
 </body>
 </html>

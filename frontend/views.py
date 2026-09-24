@@ -2,13 +2,13 @@ from functools import wraps
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.views import LoginView, LogoutView, PasswordChangeView
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from accounts.models import User, DriverProfile, DriverLicense, FaceProfile
@@ -19,7 +19,7 @@ from driving.models import DrivingSession
 from vehicles.models import Vehicle, VehicleType, DriverVehicleAssignment, Device
 from violations.models import ViolationType
 from violations.forms import ViolationTypeForm
-from .forms import RegisterForm, ProfileForm, LicenseForm, VehicleForm, VehicleTypeForm, AssignmentForm, DeviceForm
+from .forms import RegisterForm, ProfileForm, LicenseForm, VehicleForm, VehicleTypeForm, AssignmentForm, DeviceForm, ChangePasswordForm
 
 
 def is_admin(user):
@@ -35,13 +35,18 @@ def admin_required(view):
     return wrapped
 
 
-ADMIN_MENU = [('dashboard', 'Tổng quan'), ('drivers', 'Tài xế'), ('vehicles', 'Phương tiện'), ('assignments', 'Phân công'), ('sessions', 'Phiên lái'), ('violations', 'Vi phạm'), ('devices', 'Thiết bị'), ('catalogs', 'Loại xe'), ('violation-types', 'Loại vi phạm')]
-DRIVER_MENU = [('dashboard', 'Tổng quan'), ('profile', 'Hồ sơ cá nhân'), ('license', 'Giấy phép lái xe'), ('vehicles', 'Xe được giao'), ('sessions', 'Phiên lái của tôi'), ('violations', 'Vi phạm của tôi')]
+ADMIN_MENU = [('dashboard', 'Tổng quan'), ('drivers', 'Tài xế'), ('vehicles', 'Phương tiện'), ('assignments', 'Phân công'), ('sessions', 'Phiên lái'), ('violations', 'Vi phạm'), ('devices', 'Thiết bị'), ('catalogs', 'Loại xe'), ('violation-types', 'Loại vi phạm'), ('password-change', 'Đổi mật khẩu')]
+DRIVER_MENU = [('dashboard', 'Tổng quan'), ('profile', 'Hồ sơ cá nhân'), ('license', 'Giấy phép lái xe'), ('vehicles', 'Xe được giao'), ('sessions', 'Phiên lái của tôi'), ('violations', 'Vi phạm của tôi'), ('password-change', 'Đổi mật khẩu')]
 
 
 def page(request, template, **context):
     admin = is_admin(request.user)
-    context.update(is_admin=admin, navigation=ADMIN_MENU if admin else DRIVER_MENU)
+    current = request.resolver_match.url_name
+    active = {'home': 'dashboard', 'driver-detail': 'drivers', 'driver-action': 'drivers',
+              'violation-detail': 'violations', 'violation-review': 'violations', 'face': 'profile'}.get(current, current)
+    if current in ('create', 'edit'):
+        active = request.resolver_match.kwargs.get('key', current)
+    context.update(is_admin=admin, navigation=ADMIN_MENU if admin else DRIVER_MENU, active_page=active)
     return render(request, template, context)
 
 
@@ -53,6 +58,25 @@ class SignIn(LoginView):
 
 class SignOut(LogoutView):
     next_page = 'frontend:login'
+
+
+class ChangePassword(PasswordChangeView):
+    template_name = 'password_change.html'
+    form_class = ChangePasswordForm
+    success_url = reverse_lazy('frontend:password-change')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        admin = is_admin(self.request.user)
+        context.update(title='Đổi mật khẩu', is_admin=admin,
+                       navigation=ADMIN_MENU if admin else DRIVER_MENU)
+        return context
+
+    def form_valid(self, form):
+        # Django hashes the password and retains only the current session's auth hash.
+        response = super().form_valid(form)
+        messages.success(self.request, 'Đã đổi mật khẩu thành công. Bạn vẫn đăng nhập trên thiết bị này.')
+        return response
 
 
 def register(request):
@@ -144,7 +168,8 @@ def edit(request, key, pk=None):
             form.save()
             messages.success(request, 'Đã lưu dữ liệu.')
             return redirect('frontend:' + key)
-    return page(request, 'form.html', title=('Cập nhật · ' if pk else 'Thêm · ') + title, form=form)
+    return page(request, 'form.html', title=('Cập nhật · ' if pk else 'Thêm · ') + title, form=form,
+                back_url=reverse('frontend:' + key))
 
 
 @login_required
@@ -156,11 +181,11 @@ def profile(request):
     if request.method == 'POST' and form.is_valid():
         try:
             save_profile(form, request.user)
-            messages.success(request, 'Đã lưu hồ sơ.' + (' Đã tạo vector khuôn mặt và gửi chờ duyệt.' if form.cleaned_data.get('avatar') else ''))
+            messages.success(request, 'Đã lưu hồ sơ.' + (' Đã gửi ảnh khuôn mặt chờ duyệt.' if form.cleaned_data.get('avatar') else ''))
             return redirect('frontend:profile')
         except (MediaError, ValidationError) as exc:
             form.add_error(None, exc if isinstance(exc, ValidationError) else str(exc))
-    return page(request, 'form.html', title='Hồ sơ cá nhân', form=form, face=face, status=obj.get_approval_status_display() if obj else 'Chưa có hồ sơ', note='Ảnh đầu tiên là avatar. Có thể thêm 4 góc mặt. Ảnh được gửi đến dịch vụ nhận diện để tạo vector; avatar lưu trên Cloudinary. Đổi ảnh sẽ cần duyệt khuôn mặt lại. Mỗi ảnh tối đa 5 MB.')
+    return page(request, 'form.html', title='Hồ sơ cá nhân', form=form, face=face, status=obj.get_approval_status_display() if obj else 'Chưa có hồ sơ', note='Cập nhật thông tin và ảnh rõ mặt của bạn. Có thể bổ sung tối đa 4 góc mặt; mỗi ảnh tối đa 5 MB. Ảnh mới cần được quản trị viên duyệt lại.')
 
 
 @login_required
@@ -179,7 +204,7 @@ def license_page(request):
             return redirect('frontend:license')
         except (MediaError, ValidationError) as exc:
             form.add_error(None, exc if isinstance(exc, ValidationError) else str(exc))
-    return page(request, 'form.html', title='Giấy phép lái xe', form=form, license=obj, status=obj.get_effective_status_display() if obj else 'Chưa có GPLX', note='Chọn ảnh JPG, PNG hoặc WebP từ máy, tối đa 5 MB/ảnh. Ảnh được lưu trên Cloudinary. Khi cập nhật có thể giữ ảnh cũ bằng cách không chọn ảnh mới.')
+    return page(request, 'form.html', title='Giấy phép lái xe', form=form, license=obj, status=obj.get_effective_status_display() if obj else 'Chưa có GPLX', note='Tải ảnh rõ nét cả hai mặt GPLX (JPG, PNG hoặc WebP, tối đa 5 MB/ảnh). Để giữ ảnh hiện tại, không chọn ảnh mới. Thông tin cập nhật sẽ được gửi chờ duyệt.')
 
 
 @admin_required

@@ -88,6 +88,7 @@ Hệ thống chỉ phục vụ **một công ty vận tải**.
 Tài xế có thể:
 
 - Đăng ký tài khoản.
+- Đổi mật khẩu khi đã đăng nhập, có xác nhận mật khẩu hiện tại.
 - Cập nhật hồ sơ cá nhân.
 - Cập nhật GPLX.
 - Upload ảnh trước/sau GPLX.

@@ -1,4 +1,4 @@
-﻿# SaveLife — các trang động Django
+# SaveLife — các trang động Django
 
 Chạy `python manage.py runserver`, mở http://127.0.0.1:8000/.
 Các trang hiện đọc và ghi database cấu hình trong `.env`. Không tạo dữ liệu mẫu, không cần npm.
@@ -8,6 +8,7 @@ Các trang hiện đọc và ghi database cấu hình trong `.env`. Không tạo
 | Trang | URL | Chức năng |
 | --- | --- | --- |
 | Đăng nhập, đăng ký | `/login/`, `/register/` | Xác thực Django session; đăng ký chỉ tạo tài khoản USER |
+| Đổi mật khẩu | `/password/change/` | Tài khoản đã đăng nhập nhập mật khẩu hiện tại và xác nhận mật khẩu mới; giữ phiên hiện tại, các phiên khác phải đăng nhập lại |
 | Tổng quan | `/dashboard/` | Thống kê và phiên gần đây từ database theo quyền |
 | Tài xế | `/drivers/` | Admin tìm kiếm, xem hồ sơ/GPLX, duyệt và vô hiệu hóa tài khoản |
 | Hồ sơ | `/profile/` | Cập nhật thông tin, chọn avatar và tối đa 4 ảnh góc mặt; tạo vector và lưu FaceProfile |
@@ -61,7 +62,7 @@ Các module `static/js/`, `static/app.js` và bộ kiểm thử Node cũ là mã
 
 ```text
 python manage.py check
-python manage.py test frontend.tests frontend.test_uploads frontend.test_consistency config.test_frontend violations driving --settings=config.test_settings
+python manage.py test frontend.tests frontend.test_uploads frontend.test_consistency frontend.test_passwords config.test_frontend violations driving --settings=config.test_settings
 ```
 
 Bộ test dùng SQLite trong bộ nhớ, không thay đổi database PostgreSQL hiện tại. Chạy `python manage.py migrate` để áp dụng schema hiện tại. Migration phiên lái lấy vehicle từ phân công; nếu dữ liệu cũ có nhiều phiên STARTED cho cùng xe hoặc sai thời gian/trạng thái, migration dừng để kiểm tra thay vì tự sửa lịch sử.

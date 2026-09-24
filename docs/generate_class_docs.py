@@ -24,6 +24,7 @@ descriptions = {
 }
 models = []
 methods = {}
+properties = {}
 for app in ('accounts', 'vehicles', 'driving', 'violations'):
     path = ROOT / app / 'models.py'
     for node in ast.parse(path.read_text(encoding='utf-8')).body:
@@ -31,6 +32,7 @@ for app in ('accounts', 'vehicles', 'driving', 'violations'):
             continue
         fields, enums = [], []
         methods[node.name] = [member.name for member in node.body if isinstance(member, ast.FunctionDef)]
+        properties[node.name] = {member.name for member in node.body if isinstance(member, ast.FunctionDef) and any(ast.unparse(d) == 'property' for d in member.decorator_list)}
         for member in node.body:
             if isinstance(member, ast.ClassDef) and any(ast.unparse(base) == 'models.TextChoices' for base in member.bases):
                 enums.append((member.name, [ast.literal_eval(x.value)[0] for x in member.body if isinstance(x, ast.Assign)]))
@@ -54,12 +56,13 @@ for name, app, fields, enums in models:
             target = args[0] if args else kw['to']
             target = 'User' if target == 'settings.AUTH_USER_MODEL' else target.strip("'\"").split('.')[-1]
             many = '0..1' if kind == 'OneToOneField' else '0..*'
-            relations.append((target, name, many, field, kw['on_delete'].split('.')[-1], kw.get('related_name', '')))
+            parent_count = '0..1' if kw.get('null') == 'True' else '1'
+            relations.append((target, name, many, field, kw['on_delete'].split('.')[-1], kw.get('related_name', f'{name.lower()}_set'), parent_count))
         else:
             lines.append(f'    +{types[kind]} {field}')
-    lines += [f'    +{method}()' for method in methods[name]] + ['}']
-for target, name, many, field, delete, reverse in relations:
-    lines.append(f'{target} "1" -- "{many}" {name} : {field}')
+    lines += [f'    +{method}' + ('' if method in properties[name] else '()') for method in methods[name]] + ['}']
+for target, name, many, field, delete, reverse, parent_count in relations:
+    lines.append(f'{target} "{parent_count}" -- "{many}" {name} : {field}')
 mermaid = '\n'.join(lines) + '\n'
 (OUT / 'so_do_lop.mmd').write_text(mermaid, encoding='utf-8')
 
@@ -84,7 +87,7 @@ def table(headers, rows):
 
 p('SƠ ĐỒ LỚP VÀ MÔ TẢ MÔ HÌNH DỮ LIỆU', 'Title')
 p('Hệ thống quản lý và giám sát tài xế lái xe — PBL6')
-p('Cập nhật: 23/09/2026. Nguồn đối chiếu: các model, form, dịch vụ và README trong dự án.')
+p('Cập nhật: 24/09/2026. Nguồn đối chiếu: các model, form, dịch vụ và README trong dự án.')
 p('1. Phạm vi và cách đọc', 'Heading1')
 p(f'Tài liệu mô tả {len(models)} lớp model đã triển khai trong accounts, vehicles, driving và violations. AbstractUser là lớp cha của Django, không tính vào số model nghiệp vụ. Không liệt kê toàn bộ lớp form/view/admin hoặc QuerySet.')
 p('Mã Mermaid đầy đủ nằm trong so_do_lop.mmd và phụ lục cuối tài liệu. Sao chép toàn bộ nội dung file .mmd vào trình biên tập Mermaid để vẽ sơ đồ.')
@@ -106,7 +109,8 @@ for name, app, fields, enums in models:
         p(f'{name}.{enum}: ' + ', '.join(values) + '.')
     p('Phương thức/thuộc tính tính toán khai báo trong model: ' + ', '.join(methods[name]) + '.')
 p('4. Quan hệ và quy tắc xóa', 'Heading1')
-table(['Quan hệ (cha → con)', 'Bội số', 'Trường ở con / truy cập ngược', 'on_delete'], [(f'{a} → {b}', f'1 → {m}', f'{f} / {r}', d) for a, b, m, f, d, r in relations])
+table(['Quan hệ (cha → con)', 'Bội số hai đầu UML', 'Trường ở con / truy cập ngược', 'on_delete'], [(f'{a} → {b}', f'{parent} — {m}', f'{f} / {r}', d) for a, b, m, f, d, r, parent in relations])
+p('ViolationReview.reviewer cho phép NULL: mỗi lịch sử có 0..1 User, mỗi User có 0..* lịch sử. SET_NULL giữ lịch sử khi tài khoản người duyệt bị xóa; reviewer_name giữ tên tại thời điểm xử lý. Các thành viên có @property được vẽ như thuộc tính tính toán, không có dấu ().')
 p('OneToOneField bắt buộc mỗi đối tượng con có đúng một cha, nhưng không bắt buộc cha đã có con. Vì vậy DriverProfile có thể chưa có DriverLicense hoặc FaceProfile; User có thể chưa có DriverProfile; Vehicle có thể chưa có Device.')
 p('CASCADE: khi xóa cha qua Django, đối tượng con liên quan cũng bị xóa. PROTECT: chặn xóa cha nếu vẫn còn đối tượng con tham chiếu. Ví dụ, xóa User kéo theo DriverProfile nhưng có thể bị chặn nếu hồ sơ đang được DriverLicense, FaceProfile hoặc DriverVehicleAssignment bảo vệ. Đây là chính sách on_delete của ORM Django.')
 p('DriverProfile và Vehicle có quan hệ nhiều–nhiều về nghiệp vụ thông qua DriverVehicleAssignment. Lớp trung gian có id riêng cùng start_at/end_at; mã nguồn không khai báo ManyToManyField trực tiếp và không có ràng buộc duy nhất cho cặp driver–vehicle. Có thể có nhiều lần phân công cho cùng một cặp.')
@@ -116,7 +120,7 @@ for text in [
     'frontend/forms.py — ProfileForm: ngày sinh phải trước ngày hiện tại. LicenseForm: ngày cấp không ở tương lai; ngày hết hạn sau ngày cấp và phải còn hạn.',
     'frontend/forms.py — VehicleForm: xe TRUCK yêu cầu load_capacity > 0, xe BUS yêu cầu passenger_capacity > 0; thông số của nhóm còn lại được đặt None. Năm sản xuất nằm từ 1900 đến năm hiện tại.',
     'frontend/forms.py — AssignmentForm: khi giao mới/gia hạn, xe phải ACTIVE, tài xế hoạt động và hồ sơ APPROVED. Vẫn được kết thúc/rút ngắn phân công cũ khi tài xế/xe không còn đủ điều kiện. Không đổi tài xế/xe/start_at khi đã có phiên.',
-    'accounts/profile_services.py — save_profile(form, user): lưu hồ sơ và ảnh/embedding; hồ sơ mới hoặc đổi họ tên/ngày sinh được đặt PENDING; ảnh khuôn mặt mới đặt FaceProfile về PENDING.',
+    'accounts/profile_services.py — save_profile(form, user): lưu hồ sơ và ảnh/embedding; hồ sơ mới, hồ sơ REJECTED được gửi lại hoặc đổi họ tên/ngày sinh được đặt PENDING; ảnh khuôn mặt mới đặt FaceProfile về PENDING.',
     'accounts/profile_services.py — save_license(form, driver): lưu GPLX và ảnh hai mặt, đặt trạng thái PENDING; dùng transaction và xử lý ảnh Cloudinary. Đây là hàm dịch vụ, không phải phương thức của model.',
     'ProfileForm/LicenseForm và thao tác duyệt dùng version của bản ghi; dịch vụ kiểm tra lại dưới khóa transaction để từ chối cập nhật từ trang cũ. DriverProfile hỗ trợ PENDING/APPROVED/REJECTED.',
     'DrivingSession có CHECK khớp trạng thái/thời gian và UNIQUE có điều kiện trên vehicle khi STARTED. save() ngăn sửa phiên ENDED. Phân công trùng thời gian giữa nhiều tài xế vẫn được cho phép theo thiết kế.',

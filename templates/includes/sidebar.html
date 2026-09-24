@@ -1,13 +1,13 @@
-<aside id="sidebar">
-  <a class="brand" href="{% url 'frontend:dashboard' %}"
-    ><span class="brand-icon">DS</span> DriveSense<span class="brand-dot"></span
-  ></a>
-
-  <p class="nav-label">ĐIỀU HÀNH</p>
-  <nav id="navigation" aria-label="Điều hướng chính">{% if user.is_authenticated %}{% for name, label in navigation %}{% with route='frontend:'|add:name %}<a href="{% url route %}" {% if request.resolver_match.url_name == name %}class="active" aria-current="page"{% endif %}>{{ label }}</a>{% endwith %}{% endfor %}{% else %}<a href="{% url 'frontend:login' %}">Đăng nhập</a><a href="{% url 'frontend:register' %}">Đăng ký tài xế</a>{% endif %}</nav>
-  <div class="sidebar-footer">
-    <span class="status-dot"></span> Hệ thống quản lý vận tải<small
-      >Quản lý tập trung. An tâm mỗi chuyến.</small
-    >
-  </div>
+<aside id="sidebar" aria-label="Menu ứng dụng">
+  <a class="brand" href="{% url 'frontend:dashboard' %}"><span class="brand-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3 4 6v6c0 4 8 9 8 9s8-5 8-9V6l-8-3Z"/><path d="m8 12 3 3 5-6"/></svg></span><span>SaveLife<small>Quản lý vận tải</small></span></a>
+  <p class="nav-label">{% if is_admin %}ĐIỀU HÀNH{% else %}KHÔNG GIAN TÀI XẾ{% endif %}</p>
+  <nav id="navigation" aria-label="Điều hướng chính">
+    {% if user.is_authenticated %}
+    {% for name, label in navigation %}
+      {% if name == 'catalogs' or name == 'password-change' %}<div class="nav-divider"></div>{% endif %}
+      {% with route='frontend:'|add:name %}<a href="{% url route %}" {% if active_page == name or request.resolver_match.url_name == name %}class="active" aria-current="page"{% endif %}><span class="nav-indicator" aria-hidden="true"></span>{{ label }}</a>{% endwith %}
+    {% endfor %}
+    {% else %}<a href="{% url 'frontend:login' %}">Đăng nhập</a><a href="{% url 'frontend:register' %}">Đăng ký tài xế</a>{% endif %}
+  </nav>
+  <div class="sidebar-footer"><strong>An tâm mỗi chuyến đi.</strong><small>Hệ thống quản lý & giám sát tài xế</small></div>
 </aside>

@@ -1,6 +1,10 @@
 {% extends 'base.html' %}
-{% block content %}<div class="page-heading"><h1>{{ title }}</h1>{% if status %}<span class="tag">{{ status }}</span>{% endif %}</div>
-{% if note %}<p class="notice">{{ note }}</p>{% endif %}
-{% if face %}<section class="card"><div class="card-body"><img class="upload-preview" src="{{ face.face_image_url }}" alt="Ảnh đại diện hiện tại" referrerpolicy="no-referrer"><p>Khuôn mặt: {{ face.get_approval_status_display }} · Đã tạo vector nhận diện.</p></div></section>{% endif %}
-{% if license %}<section class="card"><div class="card-body"><div class="form-grid"><div><p>Mặt trước hiện tại</p><img class="upload-preview" src="{{ license.front_image_url }}" alt="GPLX mặt trước" referrerpolicy="no-referrer"></div><div><p>Mặt sau hiện tại</p><img class="upload-preview" src="{{ license.back_image_url }}" alt="GPLX mặt sau" referrerpolicy="no-referrer"></div></div></div></section>{% endif %}
-<section class="card"><div class="card-body"><form method="post" enctype="multipart/form-data">{% csrf_token %}{% include 'includes/fields.html' %}<div class="form-actions"><button class="button primary">Lưu thông tin</button></div></form></div></section>{% endblock %}
+{% block content %}
+<div class="form-page">
+  <div class="page-heading"><div>{% if back_url %}<a class="back-link" href="{{ back_url }}">← Về danh sách</a>{% else %}<p class="eyebrow">Thông tin cá nhân</p>{% endif %}<h1>{{ title }}</h1></div>{% if status %}<span class="tag">{{ status }}</span>{% endif %}</div>
+  {% if note %}<p class="notice">{{ note }}</p>{% endif %}
+  {% if face %}<section class="card"><div class="card-body current-media"><img class="upload-preview face-preview" src="{{ face.face_image_url }}" alt="Ảnh đại diện hiện tại" referrerpolicy="no-referrer"><div><h2>Ảnh khuôn mặt hiện tại</h2><p class="muted">Trạng thái: {{ face.get_approval_status_display }}</p><small>Ảnh hiện tại được giữ lại khi bạn không chọn ảnh mới.</small></div></div></section>{% endif %}
+  {% if license %}<section class="card"><div class="card-header"><h2>Ảnh GPLX hiện tại</h2></div><div class="card-body"><div class="form-grid"><div><p class="media-label">Mặt trước</p><a href="{{ license.front_image_url }}" target="_blank" rel="noopener noreferrer"><img class="upload-preview license-preview" src="{{ license.front_image_url }}" alt="GPLX mặt trước" referrerpolicy="no-referrer"></a></div><div><p class="media-label">Mặt sau</p><a href="{{ license.back_image_url }}" target="_blank" rel="noopener noreferrer"><img class="upload-preview license-preview" src="{{ license.back_image_url }}" alt="GPLX mặt sau" referrerpolicy="no-referrer"></a></div></div></div></section>{% endif %}
+  <section class="card"><div class="card-header"><h2>Thông tin chi tiết</h2><small><span class="required-mark">*</span> Bắt buộc</small></div><div class="card-body"><form method="post" enctype="multipart/form-data">{% csrf_token %}{% include 'includes/fields.html' %}<div class="form-actions">{% if back_url %}<a class="button subtle" href="{{ back_url }}">Hủy</a>{% endif %}<button class="button primary">Lưu thông tin</button></div></form></div></section>
+</div>
+{% endblock %}

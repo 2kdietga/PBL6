@@ -1,5 +1,5 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm, PasswordChangeForm
 from django.utils import timezone
 from accounts.models import User, DriverProfile, DriverLicense
 from vehicles.models import Vehicle, VehicleType, Device, DriverVehicleAssignment
@@ -43,6 +43,20 @@ class RegisterForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = User
         fields = ('username', 'email')
+
+
+class ChangePasswordForm(PasswordChangeForm):
+    error_messages = {
+        **PasswordChangeForm.error_messages,
+        'password_incorrect': 'Mật khẩu hiện tại không đúng.',
+        'password_mismatch': 'Hai mật khẩu mới không khớp.',
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['old_password'].label = 'Mật khẩu hiện tại'
+        self.fields['new_password1'].label = 'Mật khẩu mới'
+        self.fields['new_password2'].label = 'Nhập lại mật khẩu mới'
 
 
 class VersionedModelForm(forms.ModelForm):
