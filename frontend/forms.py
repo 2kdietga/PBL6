@@ -132,11 +132,23 @@ class VehicleTypeForm(forms.ModelForm):
         return value
 
 
+class VehicleTypeSelect(forms.Select):
+    """Expose the selected type's category for the vehicle form UI."""
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        instance = getattr(value, 'instance', None)
+        if instance is not None:
+            option['attrs']['data-category'] = instance.category
+        return option
+
+
 class VehicleForm(forms.ModelForm):
     class Meta:
         model = Vehicle
         fields = ('license_plate', 'vehicle_type', 'brand', 'model', 'manufacture_year', 'load_capacity', 'passenger_capacity', 'status', 'description')
-        labels = dict(license_plate='Biển số', vehicle_type='Loại xe', brand='Hãng xe', model='Mẫu xe', manufacture_year='Năm sản xuất', load_capacity='Khối lượng (kg)', passenger_capacity='Số hành khách', status='Trạng thái', description='Mô tả')
+        labels = dict(license_plate='Biển số', vehicle_type='Loại xe', brand='Hãng xe', model='Mẫu xe', manufacture_year='Năm sản xuất', load_capacity='Trọng tải (kg)', passenger_capacity='Số lượng hành khách', status='Trạng thái', description='Mô tả')
+        widgets = {'vehicle_type': VehicleTypeSelect}
 
     def clean(self):
         values = super().clean()

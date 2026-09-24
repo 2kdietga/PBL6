@@ -81,6 +81,35 @@ class DynamicPageTests(TestCase):
         self.client.post(self.url('create', 'vehicles'), payload)
         self.assertFalse(Vehicle.objects.filter(license_plate='invalid').exists())
 
+    def test_vehicle_form_exposes_category_and_server_validates_matching_capacity(self):
+        bus = VehicleType.objects.create(name='Xe khách', category='BUS')
+        self.client.force_login(self.admin)
+        response = self.client.get(self.url('create', 'vehicles'))
+        self.assertContains(response, f'value="{self.kind.pk}" data-category="TRUCK"', html=False)
+        self.assertContains(response, f'value="{bus.pk}" data-category="BUS"', html=False)
+        self.assertContains(response, 'Trọng tải (kg)')
+        self.assertContains(response, 'Số lượng hành khách')
+
+        base = {
+            'brand': 'Test', 'model': 'Model', 'manufacture_year': '2025',
+            'status': 'ACTIVE', 'description': '',
+        }
+        response = self.client.post(self.url('create', 'vehicles'), {
+            **base, 'license_plate': '43B-10001', 'vehicle_type': bus.pk,
+            'load_capacity': '5000', 'passenger_capacity': '',
+        })
+        self.assertContains(response, 'Thông số phải lớn hơn 0')
+        self.assertFalse(Vehicle.objects.filter(license_plate='43B-10001').exists())
+
+        response = self.client.post(self.url('create', 'vehicles'), {
+            **base, 'license_plate': '43B-10001', 'vehicle_type': bus.pk,
+            'passenger_capacity': '30',
+        })
+        self.assertRedirects(response, self.url('vehicles'))
+        vehicle = Vehicle.objects.get(license_plate='43B-10001')
+        self.assertEqual(vehicle.passenger_capacity, 30)
+        self.assertIsNone(vehicle.load_capacity)
+
     def test_profile_updates_only_current_driver_and_reapproval(self):
         self.client.force_login(self.user)
         payload = dict(full_name=self.driver.full_name, date_of_birth='1990-01-01', phone='0905222222', address='Đà Nẵng', user=self.other.pk, approval_status='APPROVED', version=revision(self.driver))
@@ -160,3 +189,42 @@ class DynamicPageTests(TestCase):
         payload['device_code'] = 'PI-2'
         self.client.post(self.url('create', 'devices'), payload)
         self.assertEqual(Device.objects.count(), 1)
+
+    def test_admin_can_bulk_delete_only_unused_vehicle_types(self):
+        unused_a = VehicleType.objects.create(name='Unused A', category='BUS')
+        unused_b = VehicleType.objects.create(name='Unused B', category='TRUCK')
+        self.client.force_login(self.admin)
+        response = self.client.get(self.url('catalogs'))
+        self.assertContains(response, 'data-select-all')
+        self.assertContains(response, f'value="{unused_a.pk}"')
+
+        response = self.client.post(
+            self.url('bulk-delete', 'catalogs'),
+            {'selected': [str(self.kind.pk), str(unused_a.pk), str(unused_b.pk)]},
+            follow=True,
+        )
+        self.assertContains(response, 'Đã xóa 2 loại xe')
+        self.assertContains(response, 'đang được phương tiện sử dụng')
+        self.assertTrue(VehicleType.objects.filter(pk=self.kind.pk).exists())
+        self.assertTrue(Vehicle.objects.filter(pk=self.vehicle.pk).exists())
+        self.assertFalse(VehicleType.objects.filter(pk__in=[unused_a.pk, unused_b.pk]).exists())
+
+    def test_bulk_delete_requires_admin_selection_and_valid_ids(self):
+        self.client.force_login(self.user)
+        self.assertEqual(
+            self.client.post(self.url('bulk-delete', 'catalogs'), {'selected': self.kind.pk}).status_code,
+            403,
+        )
+
+        self.client.force_login(self.admin)
+        response = self.client.post(self.url('bulk-delete', 'catalogs'), {}, follow=True)
+        self.assertContains(response, 'Vui lòng chọn ít nhất một loại xe')
+        self.assertEqual(
+            self.client.post(self.url('bulk-delete', 'catalogs'), {'selected': 'invalid'}).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.post(self.url('bulk-delete', 'vehicles'), {'selected': self.vehicle.pk}).status_code,
+            403,
+        )
+        self.assertTrue(Vehicle.objects.filter(pk=self.vehicle.pk).exists())

@@ -1,1 +1,30 @@
-<section class="card"><div class="card-header"><h2>Ảnh đại diện và nhận diện khuôn mặt</h2></div><div class="card-body">{% if face %}<img class="upload-preview" src="{{ face.face_image_url }}" alt="Ảnh tài xế" referrerpolicy="no-referrer"><p>{{ face.get_approval_status_display }} · Vector {{ face.embedding|length }} chiều</p><details><summary>Xem vector embedding</summary><pre class="embedding-vector">{{ face.embedding }}</pre></details><form class="form-actions" method="post" action="{% url 'frontend:driver-action' driver.pk %}">{% csrf_token %}<input type="hidden" name="version" value="{{ face_version }}"><button class="button danger" name="action" value="face-reject">Từ chối khuôn mặt</button><button class="button primary" name="action" value="face-approve">Duyệt khuôn mặt</button></form>{% else %}<p>Chưa bổ sung ảnh khuôn mặt.</p>{% endif %}</div></section>
+<section class="card">
+  <div class="card-header">
+    <h2>Ảnh đại diện và nhận diện khuôn mặt</h2>
+    {% if face %}
+      {% if face.approval_status == 'APPROVED' %}<span class="tag good">Đã duyệt</span>
+      {% elif face.approval_status == 'REJECTED' %}<span class="tag bad">Đã từ chối</span>
+      {% else %}<span class="tag warn">Chờ duyệt</span>{% endif %}
+    {% endif %}
+  </div>
+  <div class="card-body">
+    {% if face %}
+      <img class="upload-preview" src="{{ face.face_image_url }}" alt="Ảnh tài xế" referrerpolicy="no-referrer">
+      <p>Vector nhận diện: {{ face.embedding|length }} chiều</p>
+      <details><summary>Xem vector embedding</summary><pre class="embedding-vector">{{ face.embedding }}</pre></details>
+      {% if face.approval_status == 'PENDING' %}
+      <form class="form-actions" method="post" action="{% url 'frontend:driver-action' driver.pk %}">
+        {% csrf_token %}<input type="hidden" name="version" value="{{ face_version }}">
+        <button class="button danger" name="action" value="face-reject">Từ chối khuôn mặt</button>
+        <button class="button primary" name="action" value="face-approve">Duyệt khuôn mặt</button>
+      </form>
+      {% elif face.approval_status == 'APPROVED' %}
+      <p class="notice success">Ảnh khuôn mặt này đã được duyệt và đang được sử dụng để xác minh tài xế.</p>
+      {% else %}
+      <p class="notice error">Ảnh khuôn mặt đã bị từ chối. Tài xế cần tải ảnh mới để gửi duyệt lại.</p>
+      {% endif %}
+    {% else %}
+      <p>Chưa bổ sung ảnh khuôn mặt.</p>
+    {% endif %}
+  </div>
+</section>

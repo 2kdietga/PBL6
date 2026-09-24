@@ -72,6 +72,22 @@ class ConsistencyTests(TestCase):
         self.face.refresh_from_db()
         self.assertEqual(self.face.approval_status, 'PENDING')
 
+    def test_processed_face_hides_actions_and_cannot_be_processed_again(self):
+        self.client.force_login(self.admin)
+        url = reverse('frontend:driver-action', args=[self.driver.pk])
+        self.client.post(url, {'action': 'face-approve', 'version': revision(self.face)})
+        self.face.refresh_from_db()
+        self.assertEqual(self.face.approval_status, 'APPROVED')
+
+        response = self.client.get(reverse('frontend:driver-detail', args=[self.driver.pk]))
+        self.assertContains(response, 'Đã duyệt')
+        self.assertNotContains(response, 'Duyệt khuôn mặt')
+        self.assertNotContains(response, 'Từ chối khuôn mặt')
+
+        self.client.post(url, {'action': 'face-reject', 'version': revision(self.face)})
+        self.face.refresh_from_db()
+        self.assertEqual(self.face.approval_status, 'APPROVED')
+
     def test_stale_profile_rejected_before_upload(self):
         self.client.force_login(self.user)
         payload = self.profile_payload()

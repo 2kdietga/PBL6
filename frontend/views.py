@@ -4,6 +4,7 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, LogoutView, PasswordChangeView
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models.deletion import ProtectedError
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
@@ -153,8 +154,8 @@ def listing(request, key):
     result = []
     for obj in pagination:
         url = reverse('frontend:driver-detail', args=[obj.pk]) if key == 'drivers' else reverse('frontend:edit', args=[key, obj.pk]) if form and is_admin(request.user) else ''
-        result.append({'cells': cells(key, obj), 'url': url})
-    return page(request, 'list.html', title=title, key=key, columns=columns, rows=result, pagination=pagination, query=query, choices=choices, selected_status=state, can_add=bool(form and is_admin(request.user)))
+        result.append({'id': obj.pk, 'cells': cells(key, obj), 'url': url})
+    return page(request, 'list.html', title=title, key=key, columns=columns, rows=result, pagination=pagination, query=query, choices=choices, selected_status=state, can_add=bool(form and is_admin(request.user)), can_bulk_delete=bool(key == 'catalogs' and is_admin(request.user)))
 
 
 @admin_required
@@ -170,6 +171,44 @@ def edit(request, key, pk=None):
             return redirect('frontend:' + key)
     return page(request, 'form.html', title=('Cập nhật · ' if pk else 'Thêm · ') + title, form=form,
                 back_url=reverse('frontend:' + key))
+
+
+@admin_required
+@require_POST
+def bulk_delete(request, key):
+    if key != 'catalogs':
+        raise PermissionDenied
+    raw_ids = request.POST.getlist('selected')
+    if not raw_ids:
+        messages.error(request, 'Vui lòng chọn ít nhất một loại xe cần xóa.')
+        return redirect('frontend:catalogs')
+    if len(raw_ids) > 100 or any(not value.isdigit() for value in raw_ids):
+        raise PermissionDenied
+
+    selected_ids = set(map(int, raw_ids))
+    deleted, protected = [], []
+    with transaction.atomic():
+        existing_ids = set(VehicleType.objects.filter(pk__in=selected_ids).values_list('pk', flat=True))
+        if existing_ids != selected_ids:
+            messages.error(request, 'Danh sách đã thay đổi. Vui lòng tải lại trang và chọn lại.')
+            return redirect('frontend:catalogs')
+        for vehicle_type in VehicleType.objects.select_for_update().filter(pk__in=selected_ids).order_by('pk'):
+            if vehicle_type.vehicles.exists():
+                protected.append(vehicle_type.name)
+                continue
+            try:
+                with transaction.atomic():
+                    name = vehicle_type.name
+                    vehicle_type.delete()
+                    deleted.append(name)
+            except ProtectedError:
+                protected.append(vehicle_type.name)
+
+    if deleted:
+        messages.success(request, f'Đã xóa {len(deleted)} loại xe: {", ".join(deleted)}.')
+    if protected:
+        messages.error(request, f'Không thể xóa {len(protected)} loại xe đang được phương tiện sử dụng: {", ".join(protected)}.')
+    return redirect('frontend:catalogs')
 
 
 @login_required
@@ -245,6 +284,9 @@ def driver_action(request, pk):
             user.save(update_fields=['is_active'])
         elif action in ('face-approve', 'face-reject'):
             face = target
+            if face.approval_status != 'PENDING':
+                messages.error(request, 'Ảnh khuôn mặt này đã được xử lý. Chỉ ảnh đang chờ duyệt mới có thể duyệt hoặc từ chối.')
+                return redirect('frontend:driver-detail', pk=pk)
             if not face.embedding:
                 messages.error(request, 'Hồ sơ chưa có vector khuôn mặt.')
                 return redirect('frontend:driver-detail', pk=pk)

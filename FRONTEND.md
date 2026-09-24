@@ -14,7 +14,7 @@ Các trang hiện đọc và ghi database cấu hình trong `.env`. Không tạo
 | Hồ sơ | `/profile/` | Cập nhật thông tin, chọn avatar và tối đa 4 ảnh góc mặt; tạo vector và lưu FaceProfile |
 | GPLX | `/license/` | Chọn file ảnh hai mặt, upload Cloudinary; cập nhật chuyển về PENDING |
 | Phương tiện | `/vehicles/` | Admin thêm/sửa xe; tài xế chỉ xem xe có phân công còn hiệu lực |
-| Loại xe | `/catalogs/` | Admin quản lý nhóm TRUCK/BUS |
+| Loại xe | `/catalogs/` | Admin quản lý nhóm TRUCK/BUS; có thể chọn xóa nhiều loại chưa được phương tiện sử dụng |
 | Phân công | `/assignments/` | Admin phân công tài xế đã duyệt cho xe đang hoạt động |
 | Thiết bị | `/devices/` | Admin quản lý thiết bị, mỗi xe tối đa một thiết bị |
 | Phiên lái | `/sessions/` | Chỉ đọc lịch sử từ database; tài xế chỉ xem phiên của mình |
@@ -34,6 +34,8 @@ Admin là tài khoản có `role=ADMIN` hoặc superuser. Có thể dùng tài k
 - Thiết bị hiện cập nhật trạng thái thủ công; không giả lập heartbeat hoặc tự cập nhật `last_seen_at`.
 - Phiên lái: bấm nút phần cứng → camera xác minh → hoàn tất kiểm tra → hệ thống tạo phiên. Web không tạo/sửa/kết thúc phiên. Giao thức thiết bị và quy trình kết thúc sẽ chốt sau.
 - Không xóa xe, phân công hay lịch sử. Xe có thể chuyển trạng thái. Phân công đã có phiên lái không đổi tài xế/xe/thời gian bắt đầu.
+- Loại xe có thể xóa khi chưa được phương tiện nào sử dụng. Loại đang được tham chiếu bị bảo vệ và không thể xóa.
+- Phương tiện không bị xóa; Admin dùng ACTIVE, INACTIVE hoặc LIQUIDATED để quản lý vòng đời và giữ lịch sử.
 
 ## Cấu trúc đang sử dụng
 

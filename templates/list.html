@@ -3,6 +3,7 @@
 <div class="page-heading"><div><p class="eyebrow">{% if is_admin %}Quản lý{% else %}Cá nhân{% endif %}</p><h1>{{ title }}</h1><p class="subtitle">{{ pagination.paginator.count }} bản ghi{% if query or selected_status %} phù hợp bộ lọc{% endif %}</p></div>{% if can_add %}<a class="button primary" href="{% url 'frontend:create' key %}"><span aria-hidden="true">＋</span> Thêm mới</a>{% endif %}</div>
 {% if key == 'sessions' %}<p class="notice">Theo dõi lịch sử phiên lái và trạng thái của từng chuyến đi.</p>{% endif %}
 {% if key == 'devices' %}<p class="notice">Trạng thái thiết bị hiện được quản trị viên cập nhật thủ công.</p>{% endif %}
+{% if key == 'catalogs' %}<p class="notice">Có thể chọn và xóa nhiều loại xe chưa được sử dụng. Loại xe đã gắn với phương tiện sẽ không thể xóa.</p>{% endif %}
 <section class="card">
   <form class="toolbar" method="get" role="search">
     <div class="search-control"><label class="sr-only" for="list-search">Tìm kiếm {{ title|lower }}</label><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input class="search" id="list-search" name="q" type="search" value="{{ query }}" placeholder="Tìm kiếm {{ title|lower }}…"></div>
@@ -10,11 +11,13 @@
     <button class="button" type="submit">Tìm kiếm</button>
     {% if query or selected_status %}<a class="button subtle" href="{{ request.path }}">Xóa bộ lọc</a>{% endif %}
   </form>
+  {% if can_bulk_delete %}<form method="post" action="{% url 'frontend:bulk-delete' key %}" class="bulk-form">{% csrf_token %}<div class="bulk-toolbar"><span><strong data-selected-count>0</strong> mục đã chọn</span><button class="button danger" type="submit" data-bulk-delete disabled data-confirm="Xóa các loại xe đã chọn? Thao tác này không thể hoàn tác.">Xóa mục đã chọn</button></div>{% endif %}
   <div class="table-scroll" tabindex="0" role="region" aria-label="Bảng {{ title|lower }}">
-    <table><caption class="sr-only">{{ title }}</caption><thead><tr>{% for column in columns %}<th scope="col">{{ column }}</th>{% endfor %}<th scope="col" class="row-action">Thao tác</th></tr></thead>
-    <tbody>{% for row in rows %}<tr>{% for cell in row.cells %}<td>{{ cell|default_if_none:'—' }}</td>{% endfor %}<td class="row-action">{% if row.url %}<a class="row-link" href="{{ row.url }}">Xem chi tiết <span aria-hidden="true">↗</span><span class="sr-only">: {{ row.cells.0 }}</span></a>{% else %}<span class="muted">—</span>{% endif %}</td></tr>
+    <table><caption class="sr-only">{{ title }}</caption><thead><tr>{% if can_bulk_delete %}<th scope="col" class="select-column"><input type="checkbox" data-select-all aria-label="Chọn tất cả loại xe trên trang này"></th>{% endif %}{% for column in columns %}<th scope="col">{{ column }}</th>{% endfor %}<th scope="col" class="row-action">Thao tác</th></tr></thead>
+    <tbody>{% for row in rows %}<tr>{% if can_bulk_delete %}<td class="select-column"><input type="checkbox" name="selected" value="{{ row.id }}" data-select-row aria-label="Chọn {{ row.cells.0 }}"></td>{% endif %}{% for cell in row.cells %}<td>{{ cell|default_if_none:'—' }}</td>{% endfor %}<td class="row-action">{% if row.url %}<a class="row-link" href="{{ row.url }}">Xem chi tiết <span aria-hidden="true">↗</span><span class="sr-only">: {{ row.cells.0 }}</span></a>{% else %}<span class="muted">—</span>{% endif %}</td></tr>
     {% empty %}<tr><td colspan="20"><div class="empty-state"><span class="empty-symbol" aria-hidden="true">≡</span><h2>{% if query or selected_status %}Không tìm thấy kết quả{% else %}Chưa có dữ liệu{% endif %}</h2><p>Chưa có dữ liệu phù hợp.</p>{% if query or selected_status %}<a class="button" href="{{ request.path }}">Xóa bộ lọc và xem lại</a>{% elif can_add %}<a class="button" href="{% url 'frontend:create' key %}">Thêm bản ghi đầu tiên</a>{% else %}<p>Dữ liệu sẽ xuất hiện tại đây khi được cập nhật.</p>{% endif %}</div></td></tr>{% endfor %}</tbody></table>
   </div>
+  {% if can_bulk_delete %}</form>{% endif %}
   <div class="table-footer"><span>{{ pagination.paginator.count }} bản ghi · Trang {{ pagination.number }}/{{ pagination.paginator.num_pages }}</span><div class="pagination" aria-label="Phân trang">{% if pagination.has_previous %}<a class="button" aria-label="Trang trước" href="?q={{ query|urlencode }}&amp;status={{ selected_status|urlencode }}&amp;page={{ pagination.previous_page_number }}">← Trước</a>{% endif %}{% if pagination.has_next %}<a class="button" aria-label="Trang sau" href="?q={{ query|urlencode }}&amp;status={{ selected_status|urlencode }}&amp;page={{ pagination.next_page_number }}">Sau →</a>{% endif %}</div></div>
 </section>
 {% endblock %}

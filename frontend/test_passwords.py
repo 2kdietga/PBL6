@@ -1,6 +1,7 @@
 from django.test import Client, TestCase
 from django.urls import reverse
-from accounts.models import User
+from accounts.models import User, DriverProfile, FaceProfile
+from datetime import date
 
 
 class PasswordChangeTests(TestCase):
@@ -26,6 +27,31 @@ class PasswordChangeTests(TestCase):
         self.assertContains(response, 'Mật khẩu hiện tại')
         self.assertContains(response, 'autocomplete="new-password"')
         self.assertContains(response, 'type="password"')
+
+    def test_current_face_image_is_used_as_account_avatar(self):
+        profile = DriverProfile.objects.create(
+            user=self.user,
+            full_name='Driver',
+            date_of_birth=date(1990, 1, 1),
+            phone='0905000000',
+            address='Đà Nẵng',
+        )
+        FaceProfile.objects.create(
+            driver=profile,
+            face_image_url='https://res.cloudinary.com/demo/image/upload/avatar.jpg',
+            embedding=[0.1, 0.2],
+        )
+        self.client.force_login(self.user)
+        for name in ('dashboard', 'password-change'):
+            with self.subTest(name=name):
+                response = self.client.get(reverse('frontend:' + name))
+                self.assertContains(response, 'class="account-avatar"')
+                self.assertContains(response, 'https://res.cloudinary.com/demo/image/upload/avatar.jpg')
+
+    def test_account_avatar_falls_back_to_username_initial(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('frontend:dashboard'))
+        self.assertContains(response, '<span class="account-avatar" aria-hidden="true">D</span>', html=True)
 
     def test_admin_can_open_from_menu_and_account_summary(self):
         admin = User.objects.create_user('manager', password='AdminPassword123!', role='ADMIN')

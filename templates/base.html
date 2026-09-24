@@ -23,7 +23,7 @@
       </div>
       <div class="topbar-right">
         {% if user.is_authenticated %}
-        <a class="account-summary" href="{% url 'frontend:password-change' %}" aria-label="Tài khoản {{ user.username }} — đổi mật khẩu"><span class="account-avatar" aria-hidden="true">{{ user.username|first|upper }}</span><div><strong>{{ user.username }}</strong><small>{% if is_admin %}Quản trị viên{% else %}Tài xế{% endif %}</small></div></a>
+        <a class="account-summary" href="{% url 'frontend:password-change' %}" aria-label="Tài khoản {{ user.username }} — đổi mật khẩu"><span class="account-avatar" aria-hidden="true">{% if account_face and account_face.face_image_url %}<img src="{{ account_face.face_image_url }}" alt="" referrerpolicy="no-referrer">{% else %}{{ user.username|first|upper }}{% endif %}</span><div><strong>{{ user.username }}</strong><small>{% if is_admin %}Quản trị viên{% else %}Tài xế{% endif %}</small></div></a>
         <form method="post" action="{% url 'frontend:logout' %}">{% csrf_token %}<button class="button subtle">Đăng xuất</button></form>
         {% else %}<span class="guest-caption">Quản lý vận tải</span>{% endif %}
       </div>

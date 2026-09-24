@@ -62,6 +62,49 @@ document.querySelectorAll('.has-error input,.has-error select,.has-error textare
 document.querySelector('.form-error-summary')?.focus();
 document.querySelectorAll('.dismiss-notice').forEach(button => button.addEventListener('click', () => button.closest('.notice').remove()));
 
+document.querySelectorAll('.bulk-form').forEach(form => {
+  const selectAll = form.querySelector('[data-select-all]');
+  const rows = [...form.querySelectorAll('[data-select-row]')];
+  const count = form.querySelector('[data-selected-count]');
+  const deleteButton = form.querySelector('[data-bulk-delete]');
+  const refresh = () => {
+    const selected = rows.filter(input => input.checked).length;
+    count.textContent = String(selected);
+    deleteButton.disabled = selected === 0;
+    selectAll.checked = rows.length > 0 && selected === rows.length;
+    selectAll.indeterminate = selected > 0 && selected < rows.length;
+  };
+  selectAll?.addEventListener('change', () => {
+    rows.forEach(input => { input.checked = selectAll.checked; });
+    refresh();
+  });
+  rows.forEach(input => input.addEventListener('change', refresh));
+  refresh();
+});
+
+const vehicleType = document.querySelector('#id_vehicle_type');
+const loadCapacity = document.querySelector('#id_load_capacity');
+const passengerCapacity = document.querySelector('#id_passenger_capacity');
+if (vehicleType && loadCapacity && passengerCapacity) {
+  const loadField = loadCapacity.closest('.field');
+  const passengerField = passengerCapacity.closest('.field');
+  const refreshVehicleFields = () => {
+    const category = vehicleType.selectedOptions[0]?.dataset.category || '';
+    const isTruck = category === 'TRUCK';
+    const isBus = category === 'BUS';
+    loadField.hidden = !isTruck;
+    passengerField.hidden = !isBus;
+    loadCapacity.disabled = !isTruck;
+    passengerCapacity.disabled = !isBus;
+    loadCapacity.required = isTruck;
+    passengerCapacity.required = isBus;
+    loadCapacity.setAttribute('aria-required', String(isTruck));
+    passengerCapacity.setAttribute('aria-required', String(isBus));
+  };
+  vehicleType.addEventListener('change', refreshVehicleFields);
+  refreshVehicleFields();
+}
+
 document.addEventListener('change', event => {
   const input = event.target;
   if (input.type !== 'file') return;

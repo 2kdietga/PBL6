@@ -20,7 +20,7 @@ a:hover{color:#184b40}a:focus-visible,button:focus-visible{outline:3px solid #83
 .shell{margin-left:236px;min-width:0}.topbar{height:76px;padding:0 36px;background:#fff;gap:16px;position:sticky;top:0;z-index:6}
 .topbar-start,.topbar-right,.account-summary{display:flex;align-items:center;gap:12px;min-width:0}.topbar form{margin:0}.account-summary{color:var(--ink);padding:5px 7px;border-radius:7px}.account-summary:hover{background:#f3f6f5;color:var(--ink)}
 .breadcrumb{color:var(--muted);font-size:13px}.account-summary strong{display:block;max-width:160px;overflow:hidden;text-overflow:ellipsis;font-weight:600;font-size:12px}.account-summary small{font-size:10px;margin:0}
-.account-avatar{width:34px;height:34px;background:#f0f3f4;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center;font-weight:600;font-size:12px}
+.account-avatar{position:relative;width:34px;height:34px;background:#f0f3f4;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center;font-weight:600;font-size:12px;overflow:hidden;clip-path:circle(50%);flex:0 0 34px}.account-avatar img{position:absolute;inset:0;display:block;width:100%;height:100%;min-width:100%;max-width:none;margin:0;border:0;border-radius:inherit;object-fit:cover;object-position:center}
 .mobile-brand{display:none;color:var(--ink);font-weight:650;letter-spacing:-.4px;font-size:21px}.mobile-toggle{display:none}
 main{padding:32px 36px;max-width:1460px;min-height:calc(100vh - 135px)}
 .page-heading{margin-bottom:26px;flex-wrap:wrap}.eyebrow{font-size:10px;letter-spacing:1.4px;color:var(--muted);margin-bottom:9px}
@@ -46,6 +46,7 @@ td{font-size:13px;padding:17px 22px;line-height:1.6;border-color:#edf0f2}
 .table-scroll td{max-width:360px;overflow-wrap:anywhere;min-width:110px}
 tbody tr:hover{background:#fafcfc}.row-action{width:140px;white-space:nowrap}.row-link{font-size:12px;font-weight:600;white-space:nowrap;display:inline-block;padding:6px 0}.row-link:hover{text-decoration:underline;text-underline-offset:4px}
 .table-footer{padding:15px 24px;gap:16px;align-items:center;flex-wrap:wrap;font-size:12px}.pagination{display:flex;gap:8px}.pagination .button{min-height:36px;font-size:12px;padding:6px 12px}
+.bulk-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 24px;background:#fbfcfc;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}.bulk-toolbar .button{min-height:36px;padding:6px 12px}.bulk-toolbar button:disabled{opacity:.45;cursor:not-allowed}.select-column{width:48px!important;min-width:48px!important;max-width:48px!important;text-align:center;padding-left:16px!important;padding-right:8px!important}.select-column input{width:17px;height:17px;min-height:0;margin:0;vertical-align:middle}
 .empty-state{text-align:center;padding:38px 16px;color:var(--muted)}.empty-state h2{font-size:15px;color:var(--ink);margin:12px 0 8px}.empty-state p{font-size:12px;margin:6px 0 16px}.empty-symbol{display:grid;place-items:center;width:42px;height:42px;border:1px solid var(--line);background:#f7f9fa;border-radius:10px;font-size:25px;margin:auto;color:#80909a}
 .tag{border:1px solid #e0e7e4;background:#f1f5f3;color:#466056;border-radius:5px;font-size:11px;padding:5px 9px;line-height:1.4;white-space:normal}
 .form-page{max-width:920px;margin:0 auto}.form-grid{gap:22px 24px;align-items:start}
@@ -89,12 +90,13 @@ details summary{cursor:pointer;color:var(--muted);padding:8px 0;font-size:12px}
 #sidebar{width:250px;top:64px;bottom:0;z-index:8;transform:translateX(-100%);transition:transform .18s ease;padding:22px 14px}
 body.menu-open #sidebar{top:64px;width:250px;transform:translateX(0)}body.menu-open{overflow:hidden}
 .shell{margin-left:0}.topbar{height:64px;padding:0 16px;z-index:9}.mobile-toggle{display:grid;place-items:center;min-width:40px;min-height:40px;padding:8px;border:1px solid var(--line);border-radius:6px}
-.topbar-start{gap:8px}.breadcrumb{display:none}.mobile-brand{display:block;font-size:18px}.account-summary>div{display:none}.account-avatar{width:30px;height:30px}.topbar-right{gap:6px}.topbar-right .button{padding:8px;font-size:11px;min-height:40px}
+.topbar-start{gap:8px}.breadcrumb{display:none}.mobile-brand{display:block;font-size:18px}.account-summary>div{display:none}.account-avatar{width:30px;height:30px;flex-basis:30px}.topbar-right{gap:6px}.topbar-right .button{padding:8px;font-size:11px;min-height:40px}
 main{padding:24px 16px;min-height:calc(100vh - 115px)}h1{font-size:24px}.page-heading{gap:12px;margin-bottom:20px}.date-label{display:none}
 .stats{gap:12px}.stat{padding:16px}.stat-number{font-size:30px}.quick-links{grid-template-columns:1fr;gap:9px;margin-bottom:22px}.quick-links a{padding:14px 16px}
 .card-header,.card-body{padding:18px}.card-header h2{font-size:15px}.toolbar{padding:16px;gap:10px}.search-control{flex-basis:100%;min-width:0}.toolbar select{flex:1;min-width:0;max-width:100%}
 .table-scroll td{min-width:110px}.table-scroll th,.table-scroll td{padding:13px 16px}.row-action{position:static}
 .table-footer{padding:14px 16px;font-size:11px}.form-grid,.detail-grid{grid-template-columns:1fr}.field.full{grid-column:1/-1}
+.bulk-toolbar{padding:12px 16px;align-items:stretch;flex-direction:column}.bulk-toolbar .button{width:100%}
 input,select,textarea,.field input,.field select,.field textarea{font-size:16px}.form-actions{justify-content:stretch;gap:10px}.form-actions>.button{flex:1}
 .field-help{font-size:12px}.notice{font-size:12px}.page-footer{padding:16px}.page-footer span{display:block}.empty-state{padding:28px 8px}
 .auth .card-body{padding:24px}.auth-intro{margin:4px auto 24px}.auth-intro h1{font-size:24px}.guest-layout main{padding-top:16px}.guest-caption{font-size:11px}
