@@ -166,6 +166,11 @@ class VehicleForm(forms.ModelForm):
 
 
 class AssignmentForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.is_bound and not self.instance.pk:
+            self.initial.setdefault('start_at', timezone.localtime().replace(second=0, microsecond=0))
+
     class Meta:
         model = DriverVehicleAssignment
         fields = ('driver', 'vehicle', 'start_at', 'end_at')
@@ -185,8 +190,8 @@ class AssignmentForm(forms.ModelForm):
         closing = same_assignment and end is not None and (old.end_at is None or end <= old.end_at)
         if not closing and vehicle and vehicle.status != 'ACTIVE':
             self.add_error('vehicle', 'Chỉ phân công xe đang hoạt động.')
-        if not closing and driver and (not driver.user.is_active or driver.approval_status != 'APPROVED'):
-            self.add_error('driver', 'Tài xế phải đang hoạt động và hồ sơ đã được duyệt.')
+        if not closing and driver and (not driver.user.is_active or driver.approval_status != 'APPROVED' or not driver.can_approve):
+            self.add_error('driver', 'Tài xế phải đang hoạt động, hồ sơ đầy đủ đã được duyệt, GPLX còn hạn và khuôn mặt đã được duyệt.')
         if self.instance.pk and self.instance.driving_sessions.exists():
             if driver and vehicle and (old.driver_id != driver.pk or old.vehicle_id != vehicle.pk or old.start_at != start):
                 raise forms.ValidationError('Phân công đã có phiên lái: chỉ cập nhật thời gian kết thúc để giữ lịch sử.')

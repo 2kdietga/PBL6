@@ -19,6 +19,7 @@ class User(AbstractUser):
 
 class DriverProfile(models.Model):
     class ApprovalStatus(models.TextChoices):
+        INCOMPLETE = "INCOMPLETE", "Incomplete"
         PENDING = "PENDING", "Pending"
         APPROVED = "APPROVED", "Approved"
         REJECTED = "REJECTED", "Rejected"
@@ -38,7 +39,7 @@ class DriverProfile(models.Model):
     approval_status = models.CharField(
         max_length=10,
         choices=ApprovalStatus.choices,
-        default=ApprovalStatus.PENDING,
+        default=ApprovalStatus.INCOMPLETE,
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -46,6 +47,40 @@ class DriverProfile(models.Model):
 
     def __str__(self):
         return self.full_name
+
+    @property
+    def missing_requirements(self):
+        missing = []
+        if not all((self.full_name.strip(), self.date_of_birth, self.phone.strip(), self.address.strip())):
+            missing.append('thông tin cá nhân')
+        license = DriverLicense.objects.filter(driver_id=self.pk).first() if self.pk else None
+        face = FaceProfile.objects.filter(driver_id=self.pk).first() if self.pk else None
+        if not license or not all((license.license_number, license.license_class, license.front_image_url, license.back_image_url)):
+            missing.append('GPLX và ảnh hai mặt')
+        if not face or not face.face_image_url or not face.embedding:
+            missing.append('ảnh và dữ liệu khuôn mặt')
+        return missing
+
+    @property
+    def can_approve(self):
+        if self.missing_requirements:
+            return False
+        license = DriverLicense.objects.get(driver_id=self.pk)
+        face = FaceProfile.objects.get(driver_id=self.pk)
+        return license.is_valid and license.issued_date <= timezone.localdate() and face.approval_status == 'APPROVED'
+
+    def save(self, *args, **kwargs):
+        if self.missing_requirements:
+            pending = self.pk and (
+                DriverLicense.objects.filter(driver_id=self.pk, status='PENDING').exists()
+                or FaceProfile.objects.filter(driver_id=self.pk, approval_status='PENDING').exists()
+            )
+            self.approval_status = self.ApprovalStatus.PENDING if pending else self.ApprovalStatus.INCOMPLETE
+        elif self.approval_status == 'INCOMPLETE' or (self.approval_status == 'APPROVED' and not self.can_approve):
+            self.approval_status = self.ApprovalStatus.PENDING
+        if kwargs.get('update_fields') is not None:
+            kwargs['update_fields'] = set(kwargs['update_fields']) | {'approval_status', 'updated_at'}
+        super().save(*args, **kwargs)
     
 class DriverLicense(models.Model):
     class Status(models.TextChoices):

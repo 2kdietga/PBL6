@@ -16,6 +16,12 @@ Các trang hiện đọc và ghi database cấu hình trong `.env`. Không tạo
 | Phương tiện | `/vehicles/` | Admin thêm/sửa xe; tài xế chỉ xem xe có phân công còn hiệu lực |
 | Loại xe | `/catalogs/` | Admin quản lý nhóm TRUCK/BUS; có thể chọn xóa nhiều loại chưa được phương tiện sử dụng |
 | Phân công | `/assignments/` | Admin phân công tài xế đã duyệt cho xe đang hoạt động |
+
+Ưu tiên `PENDING` hơn `INCOMPLETE` khi có GPLX hoặc ảnh khuôn mặt đang chờ duyệt, dù hồ sơ còn thiếu thành phần khác. Khi đã xử lý hết các mục chờ duyệt mà vẫn thiếu dữ liệu, trạng thái trở lại `INCOMPLETE`. Migration `accounts.0008` áp dụng quy tắc này cho hồ sơ hiện có.
+
+Admin có thể mở chi tiết phân công đang có hiệu lực và chọn **Kết thúc ngay** để đặt thời gian kết thúc bằng thời điểm hiện tại, kể cả chưa đến hạn hoặc chưa đặt hạn. Thao tác vẫn dùng được khi tài xế/xe không còn đủ điều kiện; giữ lịch sử và không tự kết thúc phiên lái. Phân công chưa bắt đầu hoặc đã kết thúc không có nút này.
+
+Hồ sơ tổng thể có thêm `INCOMPLETE` (thiếu thông tin, GPLX/ảnh hai mặt hoặc ảnh/vector khuôn mặt). Đủ dữ liệu chuyển `PENDING`; duyệt GPLX còn hạn và khuôn mặt trước, sau đó duyệt toàn bộ hồ sơ để thành `APPROVED`. Khi thay thông tin hoặc tài liệu cần xét duyệt lại. Tạo mới/gia hạn phân công kiểm tra các điều kiện này; vẫn cho kết thúc phân công cũ. Migration `accounts.0007` chuyển hồ sơ cũ thiếu dữ liệu sang `INCOMPLETE`, hồ sơ cũ đã approved và đủ dữ liệu sang `PENDING` để duyệt toàn bộ lại.
 | Thiết bị | `/devices/` | Admin quản lý thiết bị, mỗi xe tối đa một thiết bị |
 | Phiên lái | `/sessions/` | Chỉ đọc lịch sử từ database; tài xế chỉ xem phiên của mình |
 | Vi phạm | `/violations/` | Danh sách, tìm kiếm, lọc trạng thái và phân trang; tài xế chỉ xem vi phạm của mình ở PENDING/APPROVED |

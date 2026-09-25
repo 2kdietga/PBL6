@@ -19,6 +19,7 @@ urlpatterns = [
     path('manage/<str:key>/new/', views.edit, name='create'),
     path('manage/<str:key>/<int:pk>/', views.edit, name='edit'),
     path('manage/<str:key>/bulk-delete/', views.bulk_delete, name='bulk-delete'),
+    path('assignments/<int:pk>/end/', views.end_assignment, name='assignment-end'),
     path('violations/', violation_views.listing, name='violations'),
     path('violations/<int:pk>/', violation_views.detail, name='violation-detail'),
     path('violations/<int:pk>/review/', violation_views.review, name='violation-review'),

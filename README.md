@@ -784,7 +784,11 @@ Việc Appeal thành công làm Violation `REVOKED`, nhưng hiện tại Violati
 
 Driver phải có `DriverProfile` và hồ sơ phải `APPROVED` trước khi lái.
 
+Trạng thái hồ sơ là trạng thái của toàn bộ hồ sơ: `INCOMPLETE` khi thiếu thông tin cá nhân, GPLX/ảnh hai mặt hoặc ảnh/vector khuôn mặt; `PENDING` khi đã đủ và chờ duyệt. Admin chỉ duyệt `APPROVED` sau khi GPLX còn hạn đã được duyệt và khuôn mặt đã được duyệt. `REJECTED` dành cho hồ sơ bị từ chối. Cập nhật thông tin cá nhân, GPLX hoặc ảnh cần xét duyệt lại. Phân công mới/gia hạn kiểm tra cả hồ sơ tổng thể và hiệu lực GPLX.
+
 ## BR-03 — GPLX
+
+Ưu tiên trạng thái chờ duyệt: hồ sơ còn thiếu nhưng có GPLX hoặc khuôn mặt `PENDING` sẽ hiển thị `PENDING`. Sau khi xử lý hết các mục chờ duyệt, nếu vẫn thiếu dữ liệu thì trở về `INCOMPLETE`. Điều này không cho phép duyệt toàn bộ hoặc phân công khi hồ sơ chưa đủ điều kiện.
 
 GPLX phải:
 

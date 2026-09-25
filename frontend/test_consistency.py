@@ -21,6 +21,7 @@ class ConsistencyTests(TestCase):
         cls.driver = DriverProfile.objects.create(user=cls.user, full_name='Minh', date_of_birth=date(1990, 1, 1), phone='0905111111', address='Đà Nẵng', approval_status='APPROVED')
         cls.face = FaceProfile.objects.create(driver=cls.driver, face_image_url='https://example.com/old.jpg', embedding=[1, 2], approval_status='PENDING')
         cls.license = DriverLicense.objects.create(driver=cls.driver, license_number='123456', license_class='C', issued_date=date(2025, 1, 1), expiry_date=timezone.localdate()+timedelta(days=365), front_image_url='https://example.com/front.jpg', back_image_url='https://example.com/back.jpg')
+        cls.driver.refresh_from_db()
         kind = VehicleType.objects.create(name='Xe tải', category='TRUCK')
         cls.vehicle = Vehicle.objects.create(license_plate='43C-12345', vehicle_type=kind, load_capacity=5000)
         cls.assignment = DriverVehicleAssignment.objects.create(driver=cls.driver, vehicle=cls.vehicle, start_at=timezone.now()-timedelta(days=2))
@@ -49,7 +50,8 @@ class ConsistencyTests(TestCase):
     def test_all_approvals_reject_stale_or_missing_version(self):
         self.client.force_login(self.admin)
         url = reverse('frontend:driver-action', args=[self.driver.pk])
-        for obj, action in ((self.driver, 'approve'), (self.face, 'face-approve'), (self.license, 'license-approve')):
+        for obj, action in ((self.face, 'face-approve'), (self.license, 'license-approve'), (self.driver, 'approve')):
+            obj.refresh_from_db()
             old_version = revision(obj)
             obj.save()
             field = 'status' if isinstance(obj, DriverLicense) else 'approval_status'
@@ -101,6 +103,11 @@ class ConsistencyTests(TestCase):
         self.assertEqual(self.driver.full_name, 'New name')
 
     def test_inflight_profile_cannot_restore_old_approved_name(self):
+        self.face.approval_status = 'APPROVED'
+        self.face.save()
+        self.license.status = 'ACTIVE'
+        self.license.save()
+        self.driver.refresh_from_db()
         first = ProfileForm({**self.profile_payload(), 'full_name': 'New reviewed name'}, instance=DriverProfile.objects.get(pk=self.driver.pk))
         late = ProfileForm({**self.profile_payload(), 'phone': '0905999999'}, instance=DriverProfile.objects.get(pk=self.driver.pk))
         self.assertTrue(first.is_valid(), first.errors)

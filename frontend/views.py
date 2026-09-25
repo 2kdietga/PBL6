@@ -169,8 +169,27 @@ def edit(request, key, pk=None):
             form.save()
             messages.success(request, 'Đã lưu dữ liệu.')
             return redirect('frontend:' + key)
+    now = timezone.now()
+    can_end = bool(key == 'assignments' and obj and obj.start_at < now and (obj.end_at is None or obj.end_at > now))
     return page(request, 'form.html', title=('Cập nhật · ' if pk else 'Thêm · ') + title, form=form,
-                back_url=reverse('frontend:' + key))
+                end_assignment=obj if can_end else None, back_url=reverse('frontend:' + key))
+
+
+@admin_required
+@require_POST
+def end_assignment(request, pk):
+    with transaction.atomic():
+        assignment = get_object_or_404(DriverVehicleAssignment.objects.select_for_update(), pk=pk)
+        now = timezone.now()
+        if assignment.end_at is not None and assignment.end_at <= now:
+            messages.info(request, 'Phân công này đã kết thúc.')
+        elif assignment.start_at >= now:
+            messages.error(request, 'Phân công chưa bắt đầu, không thể kết thúc ngay.')
+        else:
+            assignment.end_at = now
+            assignment.save(update_fields=['end_at', 'updated_at'])
+            messages.success(request, 'Đã kết thúc phân công ngay tại thời điểm hiện tại.')
+    return redirect('frontend:assignments')
 
 
 @admin_required
@@ -251,7 +270,11 @@ def driver_detail(request, pk):
     driver = get_object_or_404(DriverProfile.objects.select_related('user'), pk=pk)
     license = DriverLicense.objects.filter(driver=driver).first()
     face = FaceProfile.objects.filter(driver=driver).first()
+    missing = driver.missing_requirements
+    notice = ('Hồ sơ chưa đầy đủ: ' + ', '.join(missing) + '.') if missing else (
+        'Cần duyệt GPLX còn hạn và khuôn mặt trước khi duyệt toàn bộ hồ sơ.' if not driver.can_approve else '')
     return page(request, 'driver_detail.html', title=driver.full_name, driver=driver, license=license, face=face,
+                profile_requirements_notice=notice,
                 driver_version=revision(driver), license_version=revision(license), face_version=revision(face))
 
 
@@ -276,6 +299,9 @@ def driver_action(request, pk):
                 messages.error(request, ' '.join(exc.messages))
                 return redirect('frontend:driver-detail', pk=pk)
         if action in ('approve', 'reject'):
+            if action == 'approve' and not driver.can_approve:
+                messages.error(request, 'Chưa thể duyệt hồ sơ: cần đủ thông tin, GPLX còn hạn được duyệt và ảnh khuôn mặt được duyệt.')
+                return redirect('frontend:driver-detail', pk=pk)
             driver.approval_status = 'APPROVED' if action == 'approve' else 'REJECTED'
             driver.save(update_fields=['approval_status', 'updated_at'])
         elif action in ('enable', 'disable'):

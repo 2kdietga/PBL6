@@ -115,12 +115,12 @@ class DynamicPageTests(TestCase):
         payload = dict(full_name=self.driver.full_name, date_of_birth='1990-01-01', phone='0905222222', address='Đà Nẵng', user=self.other.pk, approval_status='APPROVED', version=revision(self.driver))
         self.client.post(self.url('profile'), payload)
         self.driver.refresh_from_db()
-        self.assertEqual(self.driver.approval_status, 'APPROVED')
+        self.assertEqual(self.driver.approval_status, 'INCOMPLETE')
         payload['full_name'] = 'Tên mới'
         payload['version'] = revision(self.driver)
         self.client.post(self.url('profile'), payload)
         self.driver.refresh_from_db()
-        self.assertEqual(self.driver.approval_status, 'PENDING')
+        self.assertEqual(self.driver.approval_status, 'INCOMPLETE')
         self.assertEqual(self.driver.user_id, self.user.pk)
 
     def test_first_profile_and_license_workflow(self):
@@ -129,7 +129,7 @@ class DynamicPageTests(TestCase):
         self.assertRedirects(self.client.get(self.url('license')), self.url('profile'))
         self.client.post(self.url('profile'), dict(full_name='Tài xế mới', date_of_birth='1990-02-02', phone='0905000001', address='Đà Nẵng', version='new'))
         driver = DriverProfile.objects.get(user=user)
-        self.assertEqual(driver.approval_status, 'PENDING')
+        self.assertEqual(driver.approval_status, 'INCOMPLETE')
         payload = dict(license_number='UNIQUE123', license_class='C', issued_date='2025-01-01', expiry_date='2030-01-01', front_image_url='https://example.com/front.jpg', back_image_url='https://example.com/back.jpg', version='new')
         from unittest.mock import patch
         from .test_uploads import image_file

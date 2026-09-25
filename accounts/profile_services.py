@@ -21,7 +21,7 @@ def save_profile(form, user):
                 profile.pk = existing.pk
                 profile.approval_status = existing.approval_status
             profile.user = user
-            if not profile.pk or profile.approval_status == 'REJECTED' or {'full_name', 'date_of_birth'} & set(form.changed_data):
+            if not profile.pk or profile.approval_status == 'REJECTED' or {'full_name', 'date_of_birth', 'phone', 'address'} & set(form.changed_data):
                 profile.approval_status = 'PENDING'
             profile.save()
             if avatar:
@@ -35,6 +35,7 @@ def save_profile(form, user):
                 face.approval_status = 'PENDING'
                 face.save()
                 transaction.on_commit(lambda: delete_images([old_id]))
+            profile.refresh_from_db()
         return profile
     except Exception:
         delete_images(new_ids)
