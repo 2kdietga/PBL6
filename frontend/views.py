@@ -13,6 +13,7 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from accounts.models import User, DriverProfile, DriverLicense, FaceProfile
+from accounts.templatetags.status_tags import status_badge
 from accounts.media_services import MediaError
 from accounts.profile_services import save_profile, save_license
 from accounts.concurrency import revision, require_revision
@@ -128,12 +129,12 @@ def display_date(value):
 
 def cells(key, obj):
     if key == 'violation-types': return [obj.code, obj.name, obj.description]
-    if key == 'vehicles': return [obj.license_plate, obj.vehicle_type.name, obj.brand, obj.get_status_display()]
+    if key == 'vehicles': return [obj.license_plate, obj.vehicle_type.name, obj.brand, status_badge(obj.status, obj.get_status_display())]
     if key == 'catalogs': return [obj.name, obj.get_category_display(), obj.description]
     if key == 'assignments': return [obj.driver.full_name, obj.vehicle.license_plate, display_date(obj.start_at), display_date(obj.end_at)]
-    if key == 'devices': return [obj.device_code, obj.name, obj.vehicle.license_plate, obj.get_status_display(), display_date(obj.last_seen_at)]
-    if key == 'drivers': return [obj.full_name, obj.phone, obj.get_approval_status_display(), 'Hoạt động' if obj.user.is_active else 'Đã vô hiệu hóa']
-    return [obj.pk, obj.assignment.driver.full_name, obj.assignment.vehicle.license_plate, display_date(obj.started_at), display_date(obj.ended_at), obj.get_status_display()]
+    if key == 'devices': return [obj.device_code, obj.name, obj.vehicle.license_plate, status_badge(obj.status, obj.get_status_display()), display_date(obj.last_seen_at)]
+    if key == 'drivers': return [obj.full_name, obj.phone, status_badge(obj.approval_status, obj.get_approval_status_display()), status_badge('ACTIVE' if obj.user.is_active else 'DISABLED', 'Hoạt động' if obj.user.is_active else 'Đã vô hiệu hóa')]
+    return [obj.pk, obj.assignment.driver.full_name, obj.assignment.vehicle.license_plate, display_date(obj.started_at), display_date(obj.ended_at), status_badge(obj.status, obj.get_status_display())]
 
 
 @login_required
@@ -243,7 +244,7 @@ def profile(request):
             return redirect('frontend:profile')
         except (MediaError, ValidationError) as exc:
             form.add_error(None, exc if isinstance(exc, ValidationError) else str(exc))
-    return page(request, 'form.html', title='Hồ sơ cá nhân', form=form, face=face, status=obj.get_approval_status_display() if obj else 'Chưa có hồ sơ', note='Cập nhật thông tin và ảnh rõ mặt của bạn. Có thể bổ sung tối đa 4 góc mặt; mỗi ảnh tối đa 5 MB. Ảnh mới cần được quản trị viên duyệt lại.')
+    return page(request, 'form.html', title='Hồ sơ cá nhân', form=form, face=face, status_code=obj.approval_status if obj else '', status=obj.get_approval_status_display() if obj else 'Chưa có hồ sơ', note='Cập nhật thông tin và ảnh rõ mặt của bạn. Có thể bổ sung tối đa 4 góc mặt; mỗi ảnh tối đa 5 MB. Ảnh mới cần được quản trị viên duyệt lại.')
 
 
 @login_required
@@ -262,7 +263,7 @@ def license_page(request):
             return redirect('frontend:license')
         except (MediaError, ValidationError) as exc:
             form.add_error(None, exc if isinstance(exc, ValidationError) else str(exc))
-    return page(request, 'form.html', title='Giấy phép lái xe', form=form, license=obj, status=obj.get_effective_status_display() if obj else 'Chưa có GPLX', note='Tải ảnh rõ nét cả hai mặt GPLX (JPG, PNG hoặc WebP, tối đa 5 MB/ảnh). Để giữ ảnh hiện tại, không chọn ảnh mới. Thông tin cập nhật sẽ được gửi chờ duyệt.')
+    return page(request, 'form.html', title='Giấy phép lái xe', form=form, license=obj, status_code=obj.effective_status if obj else '', status=obj.get_effective_status_display() if obj else 'Chưa có GPLX', note='Tải ảnh rõ nét cả hai mặt GPLX (JPG, PNG hoặc WebP, tối đa 5 MB/ảnh). Để giữ ảnh hiện tại, không chọn ảnh mới. Thông tin cập nhật sẽ được gửi chờ duyệt.')
 
 
 @admin_required

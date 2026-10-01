@@ -12,6 +12,7 @@ from .forms import ViolationReviewForm
 from .models import Violation
 from .services import review_violation
 from accounts.concurrency import revision
+from accounts.templatetags.status_tags import status_badge
 
 
 def visible_violations(user):
@@ -41,7 +42,7 @@ def listing(request):
     result = [{
         'cells': [f'VP-{obj.pk}', obj.session.assignment.driver.full_name,
                   obj.session.assignment.vehicle.license_plate, obj.violation_type.name,
-                  obj.get_severity_display(), display_date(obj.detected_at), obj.get_status_display()],
+                  obj.get_severity_display(), display_date(obj.detected_at), status_badge(obj.status, obj.get_status_display())],
         'url': reverse('frontend:violation-detail', args=[obj.pk]),
     } for obj in pagination]
     return page(request, 'list.html', title='Vi phạm' if is_admin(request.user) else 'Vi phạm của tôi',

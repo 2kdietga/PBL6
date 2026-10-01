@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
+{% load status_tags %}
 {% block content %}
 <div class="page-heading"><h1>{{ title }}</h1><a class="button" href="{% url 'frontend:violations' %}">← Danh sách vi phạm</a></div>
 <section class="card">
-  <div class="card-header"><h2>Thông tin vi phạm</h2><span class="tag">{{ violation.get_status_display }}</span></div>
+  <div class="card-header"><h2>Thông tin vi phạm</h2>{% status_badge violation.status violation.get_status_display %}</div>
   <div class="card-body">
     <div class="detail-grid">
       <div>Tài xế: {{ violation.session.assignment.driver.full_name }}</div>
