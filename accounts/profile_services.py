@@ -8,7 +8,7 @@ def save_profile(form, user):
     avatar = form.cleaned_data.get('avatar')
     new_ids = []
     try:
-        vector = extract_embedding([avatar] + form.cleaned_data.get('extra_images', [])) if avatar else None
+        vector = extract_embedding([avatar]) if avatar else None
         if avatar:
             url, public_id = upload_image(avatar, 'faces')
             new_ids.append(public_id)

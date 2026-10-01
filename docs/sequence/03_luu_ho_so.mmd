@@ -18,7 +18,7 @@ sequenceDiagram
     else Form hợp lệ
         V->>S: save_profile(form, user)
         opt Có avatar mới
-            S->>M: extract_embedding(avatar và ảnh bổ sung)
+            S->>M: extract_embedding(một ảnh đại diện)
             M->>API: POST multipart (1 đến 5 ảnh)
             API-->>M: HTTP response và vector
             M->>M: Kiểm tra vector số hữu hạn, không toàn 0

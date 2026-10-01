@@ -9,7 +9,6 @@ from django.urls import reverse
 from accounts.models import User, DriverProfile, DriverLicense, FaceProfile
 from accounts.media_services import MediaError, extract_embedding
 from accounts.concurrency import revision
-from .forms import ProfileForm
 
 
 def image_file(name='face.png'):
@@ -33,7 +32,8 @@ class UploadTests(TestCase):
         self.assertRedirects(self.client.post(reverse('frontend:profile'), payload), reverse('frontend:profile'))
         face = FaceProfile.objects.get(driver=self.driver)
         self.assertEqual(face.embedding, [0.2,0.4,0.6])
-        self.assertEqual(len(extract.call_args.args[0]), 2)
+        self.assertEqual(len(extract.call_args.args[0]), 1)
+        self.assertEqual(extract.call_args.args[0][0].name, 'face.png')
         self.assertEqual(face.cloudinary_public_id, 'face-new')
         face.approval_status = 'APPROVED'
         face.save()
@@ -86,11 +86,11 @@ class UploadTests(TestCase):
         self.assertTrue(response.context['form'].errors)
         extract.assert_not_called()
 
-    def test_extra_images_count_is_limited(self):
-        from django.utils.datastructures import MultiValueDict
-        form = ProfileForm(self.profile, MultiValueDict({'avatar':[image_file()], 'extra_images':[image_file() for _ in range(5)]}), instance=self.driver)
-        self.assertFalse(form.is_valid())
-        self.assertIn('extra_images', form.errors)
+    def test_profile_only_offers_one_avatar(self):
+        response = self.client.get(reverse('frontend:profile'))
+        self.assertContains(response, 'name="avatar"')
+        self.assertNotContains(response, 'name="extra_images"')
+        self.assertNotContains(response, 'multiple')
 
     @patch('accounts.profile_services.delete_images')
     @patch('accounts.profile_services.upload_image', return_value=('https://res.cloudinary.com/test/face.png', 'new'))
@@ -109,10 +109,17 @@ class EmbeddingContractTests(SimpleTestCase):
     @patch('accounts.media_services.requests.post')
     def test_notebook_multipart_contract(self, post):
         post.return_value = Mock(status_code=200, json=lambda: {'vector':[0.2,0.3]})
-        self.assertEqual(extract_embedding([image_file(), image_file()]), [0.2,0.3])
-        self.assertEqual([item[0] for item in post.call_args.kwargs['files']], ['files','files'])
+        self.assertEqual(extract_embedding([image_file()]), [0.2,0.3])
+        self.assertEqual([item[0] for item in post.call_args.kwargs['files']], ['files'])
         self.assertEqual(post.call_args.args[0], 'https://example.com/extract_profile')
         self.assertIn('timeout', post.call_args.kwargs)
+
+    @patch('accounts.media_services.requests.post')
+    def test_embedding_requires_one_image(self, post):
+        for images in ([], [image_file(), image_file()]):
+            with self.assertRaises(MediaError):
+                extract_embedding(images)
+        post.assert_not_called()
 
     @patch('accounts.media_services.requests.post')
     def test_invalid_vectors_rejected(self, post):

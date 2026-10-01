@@ -1,0 +1,13 @@
+{% if license.effective_status == 'EXPIRED' %}
+<p class="notice error">GPLX đã hết hạn. Tài xế cần cập nhật GPLX để gửi duyệt lại.</p>
+{% elif license.status == 'ACTIVE' %}
+<p class="notice success">GPLX này đã được duyệt.</p>
+{% elif license.status == 'REJECTED' %}
+<p class="notice error">GPLX đã bị từ chối. Tài xế cần cập nhật GPLX để gửi duyệt lại.</p>
+{% endif %}
+{% if license.status == 'ACTIVE' or license.status == 'EXPIRED' %}
+<form class="form-actions" method="post" action="{% url 'frontend:driver-action' driver.pk %}">
+  {% csrf_token %}<input type="hidden" name="version" value="{{ license_version }}">
+  <button class="button danger" name="action" value="license-redo" data-confirm="Chuyển GPLX sang từ chối và yêu cầu tài xế cập nhật lại?">Yêu cầu làm lại GPLX</button>
+</form>
+{% endif %}

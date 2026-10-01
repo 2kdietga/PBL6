@@ -11,7 +11,7 @@ Các trang hiện đọc và ghi database cấu hình trong `.env`. Không tạo
 | Đổi mật khẩu | `/password/change/` | Tài khoản đã đăng nhập nhập mật khẩu hiện tại và xác nhận mật khẩu mới; giữ phiên hiện tại, các phiên khác phải đăng nhập lại |
 | Tổng quan | `/dashboard/` | Thống kê và phiên gần đây từ database theo quyền |
 | Tài xế | `/drivers/` | Admin tìm kiếm, xem hồ sơ/GPLX, duyệt và vô hiệu hóa tài khoản |
-| Hồ sơ | `/profile/` | Cập nhật thông tin, chọn avatar và tối đa 4 ảnh góc mặt; tạo vector và lưu FaceProfile |
+| Hồ sơ | `/profile/` | Cập nhật thông tin, chọn một ảnh đại diện để tạo vector và lưu FaceProfile |
 | GPLX | `/license/` | Chọn file ảnh hai mặt, upload Cloudinary; cập nhật chuyển về PENDING |
 | Phương tiện | `/vehicles/` | Admin thêm/sửa xe; tài xế chỉ xem xe có phân công còn hiệu lực |
 | Loại xe | `/catalogs/` | Admin quản lý nhóm TRUCK/BUS; có thể chọn xóa nhiều loại chưa được phương tiện sử dụng |
@@ -96,7 +96,7 @@ Phần AI sau này cần bổ sung xác thực thiết bị, đối chiếu sess
 
 Cài thư viện bằng `python -m pip install -r requirements.txt`. Cloudinary đọc các biến đã có trong `.env`: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`. Các giá trị này chỉ dùng ở server.
 
-Sau khi đăng ký, tài xế được chuyển đến trang hồ sơ để điền thông tin và chọn avatar. Ảnh đầu tiên lưu làm ảnh đại diện trong `FaceProfile.face_image_url`; có thể chọn thêm tối đa 4 ảnh để cải thiện vector. Cả 1–5 ảnh gửi đến API theo notebook `mẫu.ipynb`: POST multipart với tên trường lặp lại `files`, lấy mảng `vector` trong JSON. Ảnh góc mặt bổ sung chỉ phục vụ tạo vector, không lưu lâu dài; model hiện có một ảnh khuôn mặt hiện tại.
+Sau khi đăng ký, tài xế được chuyển đến trang hồ sơ để điền thông tin và chọn một ảnh đại diện. Ảnh này lưu trong `FaceProfile.face_image_url` và được gửi đến API tạo embedding: POST multipart với một ảnh trong trường `files`, lấy mảng `vector` trong JSON. Không có ảnh góc mặt bổ sung.
 
 Endpoint đọc từ `FACE_EMBEDDING_URL` trong môi trường; cần cấu hình trước khi upload khuôn mặt. Mỗi ảnh phải là JPG/PNG/WebP thực, tối đa 5 MB và 20 megapixel. Không nhận vector do trình duyệt gửi lên; server tự gọi API. Vector lưu vào JSONField có sẵn, chưa chuyển sang pgvector.
 

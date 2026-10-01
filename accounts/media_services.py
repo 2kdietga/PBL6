@@ -16,8 +16,8 @@ class MediaError(Exception):
 
 
 def extract_embedding(images):
-    if not 1 <= len(images) <= 5:
-        raise MediaError('Vui lòng chọn từ 1 đến 5 ảnh khuôn mặt.')
+    if len(images) != 1:
+        raise MediaError('Vui lòng chọn đúng một ảnh khuôn mặt.')
     files = []
     for image in images:
         image.seek(0)

@@ -22,21 +22,6 @@ class UploadImageField(forms.ImageField):
         return image
 
 
-class MultiImageInput(forms.FileInput):
-    allow_multiple_selected = True
-
-
-class ExtraImagesField(UploadImageField):
-    def __init__(self, **kwargs):
-        super().__init__(widget=MultiImageInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}), **kwargs)
-
-    def clean(self, data, initial=None):
-        images = data if isinstance(data, (list, tuple)) else [data] if data else []
-        if len(images) > 4:
-            raise forms.ValidationError('Chọn tối đa 4 ảnh bổ sung.')
-        return [super(ExtraImagesField, self).clean(image) for image in images]
-
-
 class RegisterForm(UserCreationForm):
     email = forms.EmailField(label='Email', required=True)
 
@@ -74,13 +59,7 @@ class VersionedModelForm(forms.ModelForm):
 
 class ProfileForm(VersionedModelForm):
     avatar = UploadImageField(label='Ảnh đại diện / khuôn mặt', required=False)
-    extra_images = ExtraImagesField(label='Ảnh góc mặt bổ sung (tối đa 4)', required=False)
 
-    def clean(self):
-        values = super().clean()
-        if values.get('extra_images') and not values.get('avatar'):
-            self.add_error('avatar', 'Chọn ảnh đại diện cùng các ảnh bổ sung để tạo lại vector.')
-        return values
     class Meta:
         model = DriverProfile
         fields = ('full_name', 'date_of_birth', 'phone', 'address')

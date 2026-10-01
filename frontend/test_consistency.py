@@ -90,6 +90,86 @@ class ConsistencyTests(TestCase):
         self.face.refresh_from_db()
         self.assertEqual(self.face.approval_status, 'APPROVED')
 
+    def test_license_review_actions_follow_pending_status(self):
+        self.client.force_login(self.admin)
+        detail = reverse('frontend:driver-detail', args=[self.driver.pk])
+        action_url = reverse('frontend:driver-action', args=[self.driver.pk])
+        response = self.client.get(detail)
+        self.assertContains(response, 'value="license-approve"')
+        self.assertContains(response, 'value="license-reject"')
+
+        for action, expected in (('license-approve', 'ACTIVE'), ('license-reject', 'REJECTED')):
+            self.license.status = 'PENDING'
+            self.license.save()
+            self.client.post(action_url, {'action': action, 'version': revision(self.license)})
+            self.license.refresh_from_db()
+            self.assertEqual(self.license.status, expected)
+            response = self.client.get(detail)
+            self.assertNotContains(response, 'value="license-approve"')
+            self.assertNotContains(response, 'value="license-reject"')
+            for repeated in ('license-approve', 'license-reject'):
+                self.client.post(action_url, {'action': repeated, 'version': revision(self.license)})
+                self.license.refresh_from_db()
+                self.assertEqual(self.license.status, expected)
+
+        self.client.force_login(self.user)
+        response = self.client.post(reverse('frontend:license'), {
+            'license_number': self.license.license_number,
+            'license_class': self.license.license_class,
+            'issued_date': self.license.issued_date,
+            'expiry_date': self.license.expiry_date,
+            'version': revision(self.license),
+        })
+        self.assertEqual(response.status_code, 302)
+        self.license.refresh_from_db()
+        self.assertEqual(self.license.status, 'PENDING')
+        self.client.force_login(self.admin)
+        response = self.client.get(detail)
+        self.assertContains(response, 'value="license-approve"')
+        self.assertContains(response, 'value="license-reject"')
+
+    def test_redo_evidence_rejects_review_and_invalidates_profile(self):
+        self.client.force_login(self.admin)
+        url = reverse('frontend:driver-action', args=[self.driver.pk])
+        detail = reverse('frontend:driver-detail', args=[self.driver.pk])
+        for target, action, field in ((self.license, 'license-redo', 'status'),
+                                      (self.face, 'face-redo', 'approval_status')):
+            with self.subTest(action=action):
+                self.license.status = 'ACTIVE'
+                self.license.save()
+                self.face.approval_status = 'APPROVED'
+                self.face.save()
+                self.driver.refresh_from_db()
+                self.driver.approval_status = 'APPROVED'
+                self.driver.save()
+                response = self.client.get(detail)
+                self.assertContains(response, f'value="{action}"')
+                old_version = revision(target)
+                target.save()
+                for version in ('', old_version):
+                    self.client.post(url, {'action': action, 'version': version})
+                    target.refresh_from_db()
+                    self.assertNotEqual(getattr(target, field), 'REJECTED')
+                self.client.post(url, {'action': action, 'version': revision(target)})
+                target.refresh_from_db()
+                self.assertEqual(getattr(target, field), 'REJECTED')
+                self.driver.refresh_from_db()
+                self.assertEqual(self.driver.approval_status, 'PENDING')
+                self.assertFalse(self.driver.can_approve)
+                self.face.refresh_from_db()
+                self.assertEqual(self.face.embedding, [1, 2])
+                self.assertEqual(self.face.face_image_url, 'https://example.com/old.jpg')
+                self.assertNotContains(self.client.get(detail), f'value="{action}"')
+
+    def test_redo_pending_evidence_is_rejected(self):
+        self.client.force_login(self.admin)
+        url = reverse('frontend:driver-action', args=[self.driver.pk])
+        for target, action, field in ((self.license, 'license-redo', 'status'),
+                                      (self.face, 'face-redo', 'approval_status')):
+            self.client.post(url, {'action': action, 'version': revision(target)})
+            target.refresh_from_db()
+            self.assertEqual(getattr(target, field), 'PENDING')
+
     def test_stale_profile_rejected_before_upload(self):
         self.client.force_login(self.user)
         payload = self.profile_payload()

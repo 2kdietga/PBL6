@@ -20,6 +20,10 @@
       </form>
       {% elif face.approval_status == 'APPROVED' %}
       <p class="notice success">Ảnh khuôn mặt này đã được duyệt và đang được sử dụng để xác minh tài xế.</p>
+      <form class="form-actions" method="post" action="{% url 'frontend:driver-action' driver.pk %}">
+        {% csrf_token %}<input type="hidden" name="version" value="{{ face_version }}">
+        <button class="button danger" name="action" value="face-redo" data-confirm="Chuyển ảnh khuôn mặt sang từ chối và yêu cầu tài xế tải ảnh mới để tạo lại embedding?">Yêu cầu làm lại ảnh khuôn mặt</button>
+      </form>
       {% else %}
       <p class="notice error">Ảnh khuôn mặt đã bị từ chối. Tài xế cần tải ảnh mới để gửi duyệt lại.</p>
       {% endif %}
