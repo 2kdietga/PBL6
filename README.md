@@ -1,6 +1,6 @@
 # Hệ thống quản lý và giám sát tài xế lái xe
 
-> **Hiện trạng 23/09/2026:** Đã có web Django cho tài khoản, hồ sơ/GPLX/khuôn mặt, xe/phân công/thiết bị, xem phiên lái và xem/xác nhận vi phạm. Đã có 14 model, gồm lịch sử duyệt `ViolationReview`. Form hồ sơ và duyệt kiểm tra phiên bản dữ liệu; GPLX tính hiệu lực theo ngày; phiên lái có ràng buộc trạng thái/thời gian và một phiên STARTED cho mỗi xe. Kháng cáo mới có database và cơ chế xóa mềm để giữ quyền kháng cáo một lần. Nhận dữ liệu AI, xác thực trước phiên và giao diện kháng cáo chưa triển khai. Các phần dưới gồm cả thiết kế/lộ trình; xem `FRONTEND.md` để biết chức năng đang hoạt động.
+> **Hiện trạng 01/10/2026:** Đã có web Django cho tài khoản, hồ sơ/GPLX/khuôn mặt, xe/phân công/thiết bị, xem phiên lái và xem/xác nhận vi phạm. Đã có 14 model, gồm lịch sử duyệt `ViolationReview`. Form hồ sơ và duyệt kiểm tra phiên bản dữ liệu; GPLX tính hiệu lực theo ngày; phiên lái có ràng buộc trạng thái/thời gian và một phiên STARTED cho mỗi xe. Đã có API Raspberry Pi gửi JPEG trong RAM → HF `/extract_single` → so khớp cosine với toàn bộ tài xế có embedding và trả thông tin về Pi qua HTTP khi test; xem [hợp đồng API và cấu hình Pi](docs/raspberry_pi_api.md). API chưa kiểm tra phân công hoặc tự mở phiên lái. Kháng cáo mới có database và cơ chế xóa mềm để giữ quyền kháng cáo một lần. Nhận vi phạm từ AI và giao diện kháng cáo chưa triển khai. Các phần dưới gồm cả thiết kế/lộ trình; xem `FRONTEND.md` để biết chức năng đang hoạt động.
 
 ## 1. Giới thiệu
 

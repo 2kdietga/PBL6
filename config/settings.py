@@ -29,7 +29,7 @@ SECRET_KEY = 'django-insecure-+w!c7r8*okp_)o_dzt*%g@kynq4)(*2qv3#!-u=+p1xf6&qhdz
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -144,3 +144,19 @@ CLOUDINARY = {
     'api_secret': os.getenv('CLOUDINARY_API_SECRET', ''),
 }
 FACE_EMBEDDING_URL = os.getenv('FACE_EMBEDDING_URL', '')
+FACE_SINGLE_EMBEDDING_URL = os.getenv(
+    'FACE_SINGLE_EMBEDDING_URL',
+    FACE_EMBEDDING_URL.rsplit('/', 1)[0] + '/extract_single' if FACE_EMBEDDING_URL else '',
+)
+FACE_SINGLE_FILE_FIELD = os.getenv('FACE_SINGLE_FILE_FIELD', 'file')
+HF_API_TOKEN = os.getenv('HF_API_TOKEN', '')
+# Deployment must calibrate this using positive/negative pairs from the same model.
+# Empty by default: never silently enable authentication with an uncalibrated threshold.
+FACE_COSINE_THRESHOLD = os.getenv('FACE_COSINE_THRESHOLD', '')
+FACE_COSINE_MARGIN = float(os.getenv('FACE_COSINE_MARGIN', '0.05'))
+DEVICE_FRAME_MAX_BYTES = 2 * 1024 * 1024
+DEVICE_REQUEST_MAX_BYTES = DEVICE_FRAME_MAX_BYTES + 16 * 1024
+DEVICE_FRAME_MAX_AGE_SECONDS = 60
+# HTTP and older captures are allowed during Pi integration testing.
+DEVICE_API_REQUIRE_HTTPS = os.getenv('DEVICE_API_REQUIRE_HTTPS', 'false').lower() == 'true'
+DEVICE_API_CHECK_FRAME_AGE = os.getenv('DEVICE_API_CHECK_FRAME_AGE', 'false').lower() == 'true'
