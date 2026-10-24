@@ -1,0 +1,14 @@
+sequenceDiagram
+ participant P as Raspberry Pi
+ participant D as Django API
+ participant F as Face API
+ participant B as PostgreSQL
+ P->>D: Khóa API + JPEG
+ Note over D: Kiểm tra thiết bị, xe và dữ liệu
+ D->>F: POST /extract_single
+ F-->>D: Vector
+ D->>B: Đọc hồ sơ có embedding
+ B-->>D: Danh sách hồ sơ
+ Note over D: So khớp cosine, kiểm tra ngưỡng và biên
+ D-->>P: JSON nhận diện hoặc yêu cầu chụp lại
+ Note over P,D: Chưa kiểm tra phân công; chưa tạo phiên lái

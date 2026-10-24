@@ -1,0 +1,9 @@
+flowchart TD
+ A[Đăng ký / đăng nhập] --> B[Nhập hồ sơ, GPLX, ảnh]
+ B --> C[Kiểm tra dữ liệu, upload và tạo embedding]
+ C -->|Lỗi| B
+ C -->|Thành công| D[Lưu dữ liệu và tính trạng thái]
+ D --> E[Admin duyệt GPLX, khuôn mặt và hồ sơ]
+ E -->|Đạt điều kiện| F[APPROVED]
+ E -->|Từ chối| G[REJECTED]
+ D --- N[Thiếu: INCOMPLETE; có mục chờ duyệt: ưu tiên PENDING]

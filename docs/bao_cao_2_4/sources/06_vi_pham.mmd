@@ -1,0 +1,10 @@
+flowchart TD
+ P[PENDING] --> R[Admin xem thông tin và bằng chứng]
+ R --> A[Xác nhận: có bằng chứng, metadata hợp lệ]
+ R --> X[Từ chối]
+ A --> AP[APPROVED]
+ X --> RJ[REJECTED]
+ AP --> L[Ghi ViolationReview cùng giao dịch]
+ RJ --> L
+ AP -. Xem xét lại khi chưa có kháng cáo .-> P
+ RJ -. Xem xét lại khi chưa có kháng cáo .-> P

@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1180" viewBox="0 0 1600 1180"><rect width="100%" height="100%" fill="white"/>
+<text x="800.0" y="48" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#18334D">CẬP NHẬT VÀ XÉT DUYỆT HỒ SƠ</text>
+<text x="800.0" y="92" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#627182">Luồng nghiệp vụ tổng quát; trạng thái được tính theo các thành phần hồ sơ</text>
+<rect x="520" y="150" width="580" height="100" rx="15" fill="#EDF5FA" stroke="#25638A" stroke-width="3"/>
+<text x="810.0" y="200.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="25" font-weight="400" fill="#18334D">Tài xế đăng ký / đăng nhập</text>
+<rect x="520" y="310" width="580" height="100" rx="15" fill="#EDF5FA" stroke="#25638A" stroke-width="3"/>
+<text x="810.0" y="343.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="25" font-weight="400" fill="#18334D">Nhập thông tin, GPLX</text>
+<text x="810.0" y="377.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="25" font-weight="400" fill="#18334D">và chọn ảnh khuôn mặt</text>
+<rect x="520" y="490" width="580" height="100" rx="15" fill="#EDF5FA" stroke="#25638A" stroke-width="3"/>
+<text x="810.0" y="523.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="25" font-weight="400" fill="#18334D">Kiểm tra dữ liệu và ảnh</text>
+<text x="810.0" y="557.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="25" font-weight="400" fill="#18334D">Upload Cloudinary / tạo embedding</text>
+<rect x="520" y="670" width="580" height="100" rx="15" fill="#EDF5FA" stroke="#25638A" stroke-width="3"/>
+<text x="810.0" y="703.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="25" font-weight="400" fill="#18334D">Lưu dữ liệu và tính trạng thái</text>
+<text x="810.0" y="737.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="25" font-weight="400" fill="#18334D">Thành phần mới → chờ duyệt</text>
+<rect x="520" y="850" width="580" height="100" rx="15" fill="#EDF5FA" stroke="#25638A" stroke-width="3"/>
+<text x="810.0" y="883.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="25" font-weight="400" fill="#18334D">Admin duyệt GPLX, khuôn mặt</text>
+<text x="810.0" y="917.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="25" font-weight="400" fill="#18334D">Kiểm tra hồ sơ tổng thể</text>
+<polyline points="810,250 810,310" fill="none" stroke="#25638A" stroke-width="3"/>
+<polygon points="810,310 803.4755169883315,296.49329346470984 816.5244830116685,296.49329346470984" fill="#25638A"/>
+<polyline points="810,410 810,490" fill="none" stroke="#25638A" stroke-width="3"/>
+<polygon points="810,490 803.4755169883315,476.49329346470984 816.5244830116685,476.49329346470984" fill="#25638A"/>
+<polyline points="810,590 810,670" fill="none" stroke="#25638A" stroke-width="3"/>
+<polygon points="810,670 803.4755169883315,656.4932934647098 816.5244830116685,656.4932934647098" fill="#25638A"/>
+<polyline points="810,770 810,850" fill="none" stroke="#25638A" stroke-width="3"/>
+<polygon points="810,850 803.4755169883315,836.4932934647098 816.5244830116685,836.4932934647098" fill="#25638A"/>
+<rect x="50" y="490" width="360" height="115" rx="15" fill="#FFF5E5" stroke="#25638A" stroke-width="3"/>
+<text x="230.0" y="531.5" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#18334D">Lỗi dữ liệu / dịch vụ</text>
+<text x="230.0" y="563.5" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#18334D">Thông báo để sửa lại</text>
+<polyline points="520,540 410,540" fill="none" stroke="#25638A" stroke-width="3"/>
+<polygon points="410,540 423.50670653529016,533.4755169883315 423.50670653529016,546.5244830116685" fill="#25638A"/>
+<polyline points="230,490 230,360 520,360" fill="none" stroke="#25638A" stroke-width="3" stroke-dasharray="8 8"/>
+<polygon points="520,360 506.49329346470984,366.52448301166845 506.49329346470984,353.47551698833155" fill="#25638A"/>
+<rect x="1150" y="670" width="400" height="115" rx="15" fill="#EDF5FA" stroke="#25638A" stroke-width="3"/>
+<text x="1350.0" y="712.5" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#18334D">Thiếu thành phần: INCOMPLETE</text>
+<text x="1350.0" y="742.5" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#18334D">Có mục chờ duyệt: PENDING</text>
+<polyline points="1100,720 1150,720" fill="none" stroke="#25638A" stroke-width="3"/>
+<polygon points="1150,720 1136.49329346471,726.5244830116685 1136.49329346471,713.4755169883315" fill="#25638A"/>
+<rect x="280" y="1020" width="400" height="80" rx="15" fill="#EDF5FA" stroke="#25638A" stroke-width="3"/>
+<text x="480.0" y="1060.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="24" font-weight="400" fill="#18334D">Đạt điều kiện: APPROVED</text>
+<rect x="950" y="1020" width="400" height="80" rx="15" fill="#FFF5E5" stroke="#25638A" stroke-width="3"/>
+<text x="1150.0" y="1060.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="24" font-weight="400" fill="#18334D">Từ chối: REJECTED</text>
+<polyline points="810,950 810,980 480,980 480,1020" fill="none" stroke="#25638A" stroke-width="3"/>
+<polygon points="480,1020 473.47551698833155,1006.4932934647098 486.52448301166845,1006.4932934647098" fill="#25638A"/>
+<polyline points="810,950 810,980 1150,980 1150,1020" fill="none" stroke="#25638A" stroke-width="3"/>
+<polygon points="1150,1020 1143.4755169883315,1006.4932934647098 1156.5244830116685,1006.4932934647098" fill="#25638A"/>
+<text x="800.0" y="1150" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="19" font-weight="400" fill="#627182">SaveLife • Sơ đồ theo mã nguồn dự án • Dùng kèm mô tả phạm vi triển khai</text>
+</svg>

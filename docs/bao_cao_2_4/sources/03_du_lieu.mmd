@@ -1,0 +1,16 @@
+erDiagram
+ User ||--o| DriverProfile : user
+ DriverProfile ||--o| DriverLicense : driver
+ DriverProfile ||--o| FaceProfile : driver
+ VehicleType ||--o{ Vehicle : vehicle_type
+ Vehicle ||--o| Device : vehicle
+ DriverProfile ||--o{ DriverVehicleAssignment : driver
+ Vehicle ||--o{ DriverVehicleAssignment : vehicle
+ DriverVehicleAssignment ||--o{ DrivingSession : assignment
+ Vehicle ||--o{ DrivingSession : vehicle
+ DrivingSession ||--o{ Violation : session
+ ViolationType ||--o{ Violation : violation_type
+ Violation ||--o{ Evidence : violation
+ Violation ||--o| Appeal : violation
+ Violation ||--o{ ViolationReview : violation
+ User ||--o{ ViolationReview : reviewer
