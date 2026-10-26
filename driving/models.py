@@ -5,6 +5,9 @@ from vehicles.models import DriverVehicleAssignment
 
 
 class DrivingSession(models.Model):
+    # Historical rows remain unowned; do not guess their device from today's vehicle.
+    source_device = models.ForeignKey('vehicles.Device', null=True, blank=True,
+                                     on_delete=models.PROTECT, related_name='driving_sessions', editable=False)
     class Status(models.TextChoices):
         STARTED = "STARTED", "Started"
         ENDED = "ENDED", "Ended"
@@ -44,6 +47,8 @@ class DrivingSession(models.Model):
         super().clean()
         if self.assignment_id and self.vehicle_id != self.assignment.vehicle_id:
             raise ValidationError('Xe của phiên lái phải khớp với phân công.')
+        if not self.pk and self.source_device_id and self.source_device.vehicle_id != self.vehicle_id:
+            raise ValidationError('Thiết bị phải thuộc xe của phiên lái.')
 
     def save(self, *args, **kwargs):
         with transaction.atomic():
@@ -53,6 +58,8 @@ class DrivingSession(models.Model):
                 old = type(self).objects.select_for_update().get(pk=self.pk)
                 if old.assignment_id != self.assignment_id or old.vehicle_id != self.vehicle_id:
                     raise ValidationError('Không được đổi phân công hoặc xe của phiên lái đã tạo.')
+                if old.source_device_id != self.source_device_id:
+                    raise ValidationError('Không được đổi thiết bị nguồn của phiên lái.')
                 if old.status == self.Status.ENDED and any(
                     getattr(old, field) != getattr(self, field)
                     for field in ('started_at', 'ended_at', 'status')

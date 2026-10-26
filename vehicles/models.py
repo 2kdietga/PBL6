@@ -30,6 +30,15 @@ class VehicleType(models.Model):
         return self.name
 
 class Vehicle(models.Model):
+    gross_vehicle_weight = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    is_sleeper = models.BooleanField(default=False)
+
+    @property
+    def required_license_class(self):
+        from .licensing import required_license_class
+        return required_license_class(self.vehicle_type.category, self.gross_vehicle_weight,
+                                      self.passenger_capacity, self.is_sleeper)
+
     class Status(models.TextChoices):
         ACTIVE = "ACTIVE", "Active"
         INACTIVE = "INACTIVE", "Inactive"
@@ -96,6 +105,20 @@ class Vehicle(models.Model):
 
 
 class Device(models.Model):
+    def clean(self):
+        super().clean()
+        if self.pk:
+            old = type(self).objects.filter(pk=self.pk).first()
+            if old and old.vehicle_id != self.vehicle_id and old.vehicle.driving_sessions.filter(status='STARTED').exists():
+                raise ValidationError({'vehicle': 'Cần kết thúc phiên lái trước khi chuyển thiết bị sang xe khác.'})
+
+    def save(self, *args, **kwargs):
+        with transaction.atomic():
+            if self.pk:
+                type(self).objects.select_for_update().filter(pk=self.pk).first()
+                self.clean()
+            super().save(*args, **kwargs)
+
     # Only the hash is stored; the provisioning command prints the secret once.
     api_key_hash = models.CharField(max_length=128, blank=True, default='', editable=False)
     # Indexed fingerprint of the random token for identification without a device code.

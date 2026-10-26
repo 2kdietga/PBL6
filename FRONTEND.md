@@ -1,5 +1,7 @@
 # SaveLife — các trang động Django
 
+**Cập nhật 25/10/2026:** Đã có [API mở/kết thúc phiên lái cho Raspberry Pi](docs/session_api.md). Web vẫn chỉ xem lịch sử phiên. Form GPLX và xe thêm hệ hạng/khối lượng toàn bộ/giường nằm để API kiểm tra quyền lái.
+
 Chạy `python manage.py runserver`, mở http://127.0.0.1:8000/.
 Các trang hiện đọc và ghi database cấu hình trong `.env`. Không tạo dữ liệu mẫu, không cần npm.
 
@@ -34,11 +36,11 @@ Admin là tài khoản có `role=ADMIN` hoặc superuser. Có thể dùng tài k
 
 ## Phạm vi để sau
 
-- Đã tạo embedding hồ sơ; việc so khớp khuôn mặt khi bấm nút phần cứng vẫn triển khai sau.
+- Đã có API nhận diện và mở phiên; tích hợp nút phần cứng/camera dùng client mẫu theo tài liệu API phiên lái.
 - Vi phạm đã có model, migration và giao diện đọc database, xem bằng chứng, xác nhận/từ chối và xem xét lại. Chưa có endpoint nhận dữ liệu từ AI, upload bằng chứng hoặc chức năng tạo vi phạm trên web. Không tự sinh dữ liệu demo.
 - Kháng cáo đã có model `Appeal` (OneToOne với Violation); `/appeals/` vẫn thông báo chưa triển khai. Chưa có chức năng gửi, xử lý hoặc xóa kháng cáo. Vi phạm đã có kháng cáo chưa được xem xét lại, chờ chốt quy tắc xử lý kháng cáo cũ.
 - Thiết bị hiện cập nhật trạng thái thủ công; không giả lập heartbeat hoặc tự cập nhật `last_seen_at`.
-- Phiên lái: bấm nút phần cứng → camera xác minh → hoàn tất kiểm tra → hệ thống tạo phiên. Web không tạo/sửa/kết thúc phiên. Giao thức thiết bị và quy trình kết thúc sẽ chốt sau.
+- Phiên lái: API start xác minh và kiểm tra quyền trước khi tạo phiên; API end đóng phiên của thiết bị nguồn. Web chỉ xem lịch sử. Xem `docs/session_api.md`.
 - Không xóa xe, phân công hay lịch sử. Xe có thể chuyển trạng thái. Phân công đã có phiên lái không đổi tài xế/xe/thời gian bắt đầu.
 - Loại xe có thể xóa khi chưa được phương tiện nào sử dụng. Loại đang được tham chiếu bị bảo vệ và không thể xóa.
 - Phương tiện không bị xóa; Admin dùng ACTIVE, INACTIVE hoặc LIQUIDATED để quản lý vòng đời và giữ lịch sử.

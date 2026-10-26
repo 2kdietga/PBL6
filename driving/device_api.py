@@ -97,13 +97,13 @@ def check_device(device):
 # DEVICE AUTHENTICATION
 # ==========================================================
 
-def device_endpoint(method):
+def device_endpoint(method, *, require_ready=True):
 
     def decorate(view):
 
         @csrf_exempt
         @wraps(view)
-        def wrapped(request):
+        def wrapped(request, *args, **kwargs):
 
             request.device_request_id = str(uuid4())
 
@@ -243,7 +243,8 @@ def device_endpoint(method):
                 # 7. KIỂM TRA DEVICE / VEHICLE
                 # ==================================================
 
-                check_device(device)
+                if require_ready:
+                    check_device(device)
 
                 # ==================================================
                 # 8. LƯU DEVICE VÀO REQUEST
@@ -261,7 +262,7 @@ def device_endpoint(method):
                 # 9. GỌI VIEW
                 # ==================================================
 
-                return view(request)
+                return view(request, *args, **kwargs)
 
             except DeviceAPIError as exc:
 
@@ -298,12 +299,21 @@ def device_endpoint(method):
 # GET /api/v1/device/context/
 # ==========================================================
 
-@device_endpoint('GET')
+@device_endpoint('GET', require_ready=False)
 def context(request):
 
     device = request.device
 
-    threshold, margin = matching_config()
+    from .session_services import session_data
+    from .models import DrivingSession
+
+    # Context must remain usable to recover/end a session even when matching is unconfigured.
+    try:
+        threshold, margin = matching_config()
+    except DeviceAPIError:
+        threshold, margin = None, None
+    active = DrivingSession.objects.select_related('assignment__driver').filter(
+        source_device=device, status='STARTED').first()
 
     return reply(
         request,
@@ -311,6 +321,9 @@ def context(request):
         'Thiết bị sẵn sàng.',
         data={
             'device_code': device.device_code,
+            'active_session': session_data(active) if active else None,
+            'device_status': device.status,
+            'vehicle_status': device.vehicle.status,
 
             'vehicle': {
                 'id': device.vehicle_id,
@@ -367,6 +380,10 @@ def context(request):
 
 @device_endpoint('POST')
 def verify_face(request):
+    return process_face_request(request)
+
+
+def process_face_request(request, *, on_verified=None):
 
     # ==================================================
     # 1. Kiểm tra multipart/form-data
@@ -434,7 +451,7 @@ def verify_face(request):
 
     try:
 
-        return verify_uploaded_frame(request)
+        return verify_uploaded_frame(request, on_verified=on_verified)
 
     finally:
 
@@ -449,7 +466,7 @@ def verify_face(request):
 # XỬ LÝ FRAME
 # ==========================================================
 
-def verify_uploaded_frame(request):
+def verify_uploaded_frame(request, *, on_verified=None):
 
     # ==================================================
     # 1. Kiểm tra captured_at
@@ -503,7 +520,7 @@ def verify_uploaded_frame(request):
     # Bật bằng DEVICE_API_CHECK_FRAME_AGE=true khi cần kiểm tra ảnh mới.
     # ==================================================
 
-    if settings.DEVICE_API_CHECK_FRAME_AGE:
+    if on_verified is not None or settings.DEVICE_API_CHECK_FRAME_AGE:
         age = (
             timezone.now() - captured_at
         ).total_seconds()
@@ -613,6 +630,8 @@ def verify_uploaded_frame(request):
             action='CAPTURE_AGAIN',
             data={
                 'verified': False,
+                **({'session_started': False, 'session_id': None, 'reason_code': code}
+                   if on_verified is not None else {}),
 
                 'similarity': round(
                     score,
@@ -638,6 +657,9 @@ def verify_uploaded_frame(request):
     # ==================================================
     # 8. Trả thông tin tài xế về Pi
     # ==================================================
+
+    if on_verified is not None:
+        return on_verified(request, driver)
 
     return reply(
         request,

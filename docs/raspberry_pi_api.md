@@ -1,5 +1,7 @@
 # Raspberry Pi → Web Server → HF: xác thực tài xế
 
+Đã bổ sung [API phiên lái](session_api.md): sessions/start/, sessions/{id}/end/ và active_session trong context. Endpoint face-verifications/ vẫn chỉ nhận diện, không tự mở phiên.
+
 ## Luồng đã triển khai
 
 ```mermaid
@@ -99,7 +101,7 @@ Không dùng session login hoặc CSRF cookie cho Pi. Token xác định thiết
 
 ## 1. GET `/api/v1/device/context/`
 
-Trả `DEVICE_READY`, mã thiết bị, thông tin xe, giới hạn ảnh và cấu hình cosine. Không phụ thuộc phân công và không có `eligible_driver_count`.
+Trả `DEVICE_READY`, mã thiết bị, thông tin xe, giới hạn ảnh và cấu hình cosine; thêm active_session, device_status, vehicle_status theo [API phiên lái](session_api.md). Context đọc được khi bảo trì/xe ngừng hoạt động hoặc matching chưa cấu hình (threshold/margin null), miễn token hợp lệ. Không phụ thuộc phân công và không có `eligible_driver_count`.
 
 ## 2. POST `/api/v1/device/face-verifications/`
 

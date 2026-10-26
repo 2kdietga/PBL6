@@ -77,16 +77,18 @@ class LicenseForm(VersionedModelForm):
     front_image = UploadImageField(label='Ảnh GPLX mặt trước', required=False)
     back_image = UploadImageField(label='Ảnh GPLX mặt sau', required=False)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['front_image'].required = not bool(self.instance.front_image_url)
-        self.fields['back_image'].required = not bool(self.instance.back_image_url)
-
     class Meta:
         model = DriverLicense
-        fields = ('license_number', 'license_class', 'issued_date', 'expiry_date')
+        fields = ('license_number', 'license_class', 'license_standard', 'issued_date', 'expiry_date')
         labels = dict(license_number='Số GPLX', license_class='Hạng GPLX', issued_date='Ngày cấp', expiry_date='Ngày hết hạn', front_image_url='URL ảnh mặt trước', back_image_url='URL ảnh mặt sau')
         widgets = {key: forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d') for key in ('issued_date', 'expiry_date')}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['license_standard'].label = 'Hệ hạng GPLX'
+        self.fields['license_standard'].help_text = 'Cần xác nhận hệ hạng để Raspberry Pi kiểm tra quyền mở phiên lái.'
+        self.fields['front_image'].required = not bool(self.instance.front_image_url)
+        self.fields['back_image'].required = not bool(self.instance.back_image_url)
 
     def clean(self):
         values = super().clean()
@@ -125,9 +127,15 @@ class VehicleTypeSelect(forms.Select):
 class VehicleForm(forms.ModelForm):
     class Meta:
         model = Vehicle
-        fields = ('license_plate', 'vehicle_type', 'brand', 'model', 'manufacture_year', 'load_capacity', 'passenger_capacity', 'status', 'description')
+        fields = ('license_plate', 'vehicle_type', 'brand', 'model', 'manufacture_year', 'load_capacity', 'gross_vehicle_weight', 'passenger_capacity', 'is_sleeper', 'status', 'description')
         labels = dict(license_plate='Biển số', vehicle_type='Loại xe', brand='Hãng xe', model='Mẫu xe', manufacture_year='Năm sản xuất', load_capacity='Trọng tải (kg)', passenger_capacity='Số lượng hành khách', status='Trạng thái', description='Mô tả')
         widgets = {'vehicle_type': VehicleTypeSelect}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['gross_vehicle_weight'].label = 'Khối lượng toàn bộ theo thiết kế (kg)'
+        self.fields['gross_vehicle_weight'].help_text = 'Cần điền cho xe tải trước khi mở phiên từ Raspberry Pi.'
+        self.fields['is_sleeper'].label = 'Xe khách giường nằm'
 
     def clean(self):
         values = super().clean()
@@ -139,6 +147,9 @@ class VehicleForm(forms.ModelForm):
                 self.add_error(key, 'Thông số phải lớn hơn 0.')
             values[other] = None
         year = values.get('manufacture_year')
+        mass = values.get('gross_vehicle_weight')
+        if mass is not None and mass <= 0:
+            self.add_error('gross_vehicle_weight', 'Khối lượng phải lớn hơn 0.')
         if year and not 1900 <= year <= timezone.localdate().year:
             self.add_error('manufacture_year', 'Năm sản xuất không hợp lệ.')
         return values

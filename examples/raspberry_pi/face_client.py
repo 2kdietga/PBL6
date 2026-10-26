@@ -89,6 +89,22 @@ class FaceClient:
         return response.status_code, response.json()
 
     def verify(self, frame_bgr, captured_at):
+        return self._send_frame('face-verifications/', frame_bgr, captured_at)
+
+    def start_session(self, frame_bgr, captured_at):
+        """Only SESSION_STARTED grants a session; a face match alone does not."""
+        return self._send_frame('sessions/start/', frame_bgr, captured_at)
+
+    def end_session(self, session_id):
+        if isinstance(session_id, bool) or not isinstance(session_id, int) or session_id <= 0:
+            raise ValueError('session_id must be a positive integer')
+        response = self.session.post(
+            self.base_url + f'/api/v1/device/sessions/{session_id}/end/',
+            headers={'X-Request-ID': str(uuid4())}, timeout=(5, 10), allow_redirects=False,
+        )
+        return response.status_code, response.json()
+
+    def _send_frame(self, endpoint, frame_bgr, captured_at):
         height, width = frame_bgr.shape[:2]
         scale = min(1.0, 1280 / width, 720 / height)
         if scale < 1:
@@ -102,7 +118,7 @@ class FaceClient:
             raise ValueError('JPEG exceeds 2 MiB')
         # requests sets multipart boundary and Content-Length. Do not set Content-Type manually.
         response = self.session.post(
-            self.base_url + '/api/v1/device/face-verifications/',
+            self.base_url + '/api/v1/device/' + endpoint,
             headers={'X-Request-ID': str(uuid4())},
             data={'captured_at': captured_at},
             files={'frame': ('frame.jpg', jpeg_bytes, 'image/jpeg')},

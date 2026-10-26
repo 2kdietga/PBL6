@@ -25,7 +25,7 @@ class ReadOnlyAdmin(admin.ModelAdmin):
 
 
 @admin.register(Violation)
-class ViolationAdmin(ReadOnlyAdmin):
+class ViolationAdmin(admin.ModelAdmin):
     list_display = ('id', 'session', 'violation_type', 'severity', 'detected_at', 'status', 'review_link')
     list_filter = ('status', 'severity', 'violation_type')
     search_fields = ('session__assignment__driver__full_name', 'session__assignment__vehicle__license_plate')
@@ -37,13 +37,13 @@ class ViolationAdmin(ReadOnlyAdmin):
 
 
 @admin.register(Evidence)
-class EvidenceAdmin(ReadOnlyAdmin):
+class EvidenceAdmin(admin.ModelAdmin):
     list_display = ('id', 'violation_id', 'type', 'captured_at')
     list_filter = ('type',)
 
 
 @admin.register(Appeal)
-class AppealAdmin(ReadOnlyAdmin):
+class AppealAdmin(admin.ModelAdmin):
     list_display = ('id', 'violation_id', 'status', 'created_at', 'resolved_at', 'deleted_at')
     list_filter = ('status',)
 

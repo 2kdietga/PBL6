@@ -97,6 +97,8 @@ class DriverLicense(models.Model):
 
     license_number = models.CharField(max_length=50, unique=True)
     license_class = models.CharField(max_length=20)
+    license_standard = models.CharField(max_length=10, blank=True, default='',
+                                       choices=[('VN_2025', 'Hệ hạng từ 2025')])
 
     issued_date = models.DateField()
     expiry_date = models.DateField()
