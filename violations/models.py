@@ -44,6 +44,10 @@ class Violation(models.Model):
         HIGH = 'HIGH', 'Cao'
 
     session = models.ForeignKey('driving.DrivingSession', on_delete=models.PROTECT, related_name='violations')
+    source_device = models.ForeignKey('vehicles.Device', null=True, blank=True,
+        on_delete=models.PROTECT, related_name='violations', editable=False)
+    event_id = models.UUIDField(null=True, blank=True, editable=False)
+    confidence = models.FloatField(null=True, blank=True)
     violation_type = models.ForeignKey(ViolationType, on_delete=models.PROTECT, related_name='violations')
     severity = models.CharField(max_length=10, choices=Severity.choices)
     detected_at = models.DateTimeField()
@@ -56,6 +60,8 @@ class Violation(models.Model):
         ordering = ['-detected_at', '-pk']
         indexes = [models.Index(fields=['status', '-detected_at'], name='violation_status_detected_idx')]
         constraints = [
+            models.UniqueConstraint(fields=['source_device', 'event_id'], name='device_violation_event_unique'),
+            models.CheckConstraint(condition=models.Q(confidence__isnull=True) | models.Q(confidence__gte=0, confidence__lte=1), name='violation_confidence_range'),
             models.CheckConstraint(condition=models.Q(status__in=['PENDING', 'APPROVED', 'REJECTED', 'REVOKED']), name='violation_valid_status'),
             models.CheckConstraint(condition=models.Q(severity__in=['LOW', 'MEDIUM', 'HIGH']), name='violation_valid_severity'),
         ]

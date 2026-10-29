@@ -1,6 +1,6 @@
 # AI/Pi ↔ Server — thiết kế đơn giản cho đồ án
 
-Ngày: 25/10/2026. Phần phiên lái đã triển khai; [session_api.md](session_api.md) mô tả chính xác API hiện tại. Vi phạm và heartbeat bên dưới vẫn là đề xuất; phần phiên lái bên dưới là phác thảo ban đầu.
+Ngày cập nhật: 26/10/2026. Phiên lái và nhận vi phạm đã triển khai; xem hợp đồng hiện tại trong [session_api.md](session_api.md) và [violation_api.md](violation_api.md). Heartbeat bên dưới vẫn là đề xuất; phần phiên lái bên dưới là phác thảo ban đầu.
 
 ## 1. Phạm vi
 
@@ -25,7 +25,7 @@ Base URL: `/api/v1/device/`. Header: `Authorization: Bearer <device-api-key>`.
 | POST   | face-verifications/ | Nhận diện danh tính                   | Đã có      |
 | POST   | sessions/start/     | Nhận diện, kiểm tra quyền và mở phiên | Đã có      |
 | POST   | sessions/{id}/end/  | Kết thúc phiên                        | Đã có      |
-| POST   | violations/         | Gửi vi phạm kèm ảnh                   | Cần làm    |
+| POST   | violations/         | Gửi vi phạm kèm ảnh                   | Đã có      |
 | POST   | heartbeat/          | Báo kết nối/lỗi hiện tại              | Cần làm    |
 
 Server suy ra thiết bị và xe từ token; không tin driver_id/vehicle_id do Pi tự khai.
