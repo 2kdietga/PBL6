@@ -4,3 +4,6 @@ psycopg2-binary>=2.9,<3
 Pillow>=12.2,<13
 cloudinary>=1.46,<2
 requests>=2.34,<3
+gunicorn>=25.3,<26
+whitenoise>=6.12,<7
+dj-database-url>=2.3,<3
