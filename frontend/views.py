@@ -116,7 +116,7 @@ def dashboard(request):
 
 ENTITIES = {
     'violation-types': (ViolationType, ViolationTypeForm, 'Loại vi phạm', ['Mã', 'Tên loại', 'Mô tả'], ['code', 'name', 'description']),
-    'vehicles': (Vehicle, VehicleForm, 'Phương tiện', ['Biển số', 'Loại xe', 'Hãng xe', 'Trạng thái'], ['license_plate', 'vehicle_type__name', 'brand']),
+    'vehicles': (Vehicle, VehicleForm, 'Phương tiện', ['Biển số', 'Loại xe', 'Hãng xe', 'GPLX yêu cầu', 'Trạng thái'], ['license_plate', 'vehicle_type__name', 'brand']),
     'catalogs': (VehicleType, VehicleTypeForm, 'Loại xe', ['Tên loại', 'Nhóm', 'Mô tả'], ['name', 'description']),
     'assignments': (DriverVehicleAssignment, AssignmentForm, 'Phân công xe', ['Tài xế', 'Phương tiện', 'Bắt đầu', 'Kết thúc'], ['driver__full_name', 'vehicle__license_plate']),
     'devices': (Device, DeviceForm, 'Thiết bị', ['Mã', 'Tên', 'Xe', 'Trạng thái', 'Kết nối gần nhất'], ['device_code', 'name', 'vehicle__license_plate']),
@@ -131,7 +131,7 @@ def display_date(value):
 
 def cells(key, obj):
     if key == 'violation-types': return [obj.code, obj.name, obj.description]
-    if key == 'vehicles': return [obj.license_plate, obj.vehicle_type.name, obj.brand, status_badge(obj.status, obj.get_status_display())]
+    if key == 'vehicles': return [obj.license_plate, obj.vehicle_type.name, obj.brand, obj.required_license_class or 'Chưa đủ thông số', status_badge(obj.status, obj.get_status_display())]
     if key == 'catalogs': return [obj.name, obj.get_category_display(), obj.description]
     if key == 'assignments': return [obj.driver.full_name, obj.vehicle.license_plate, display_date(obj.start_at), display_date(obj.end_at)]
     if key == 'devices': return [obj.device_code, obj.name, obj.vehicle.license_plate, status_badge(obj.status, obj.get_status_display()), display_date(obj.last_seen_at)]

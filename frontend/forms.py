@@ -4,6 +4,7 @@ from django.utils import timezone
 from accounts.models import User, DriverProfile, DriverLicense
 from vehicles.models import Vehicle, VehicleType, Device, DriverVehicleAssignment
 from accounts.concurrency import revision, require_revision
+from vehicles.licensing import assignment_license_error
 
 
 class UploadImageField(forms.ImageField):
@@ -148,6 +149,8 @@ class VehicleForm(forms.ModelForm):
             values[other] = None
         year = values.get('manufacture_year')
         mass = values.get('gross_vehicle_weight')
+        if kind and kind.category == 'TRUCK' and mass is None:
+            self.add_error('gross_vehicle_weight', 'Cần nhập khối lượng toàn bộ theo thiết kế cho xe tải.')
         if mass is not None and mass <= 0:
             self.add_error('gross_vehicle_weight', 'Khối lượng phải lớn hơn 0.')
         if year and not 1900 <= year <= timezone.localdate().year:
@@ -182,6 +185,10 @@ class AssignmentForm(forms.ModelForm):
             self.add_error('vehicle', 'Chỉ phân công xe đang hoạt động.')
         if not closing and driver and (not driver.user.is_active or driver.approval_status != 'APPROVED' or not driver.can_approve):
             self.add_error('driver', 'Tài xế phải đang hoạt động, hồ sơ đầy đủ đã được duyệt, GPLX còn hạn và khuôn mặt đã được duyệt.')
+        if not closing and driver and vehicle:
+            error = assignment_license_error(driver, vehicle)
+            if error:
+                self.add_error('driver', error)
         if self.instance.pk and self.instance.driving_sessions.exists():
             if driver and vehicle and (old.driver_id != driver.pk or old.vehicle_id != vehicle.pk or old.start_at != start):
                 raise forms.ValidationError('Phân công đã có phiên lái: chỉ cập nhật thời gian kết thúc để giữ lịch sử.')

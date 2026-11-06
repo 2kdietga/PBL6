@@ -1,5 +1,8 @@
 
 import math
+import logging
+
+from accounts.face_vectors import normalized_vector
 
 from io import BytesIO
 from urllib.parse import urlsplit
@@ -17,37 +20,6 @@ from accounts.models import DriverProfile
 # ==========================================================
 # NORMALIZE VECTOR
 # ==========================================================
-
-def normalized_vector(vector):
-
-    if not isinstance(vector, list) or len(vector) != 512:
-        raise ValueError('Expected 512 dimensions')
-
-    if any(
-        isinstance(x, bool)
-        or not isinstance(x, (float, int))
-        or not math.isfinite(x)
-        for x in vector
-    ):
-        raise ValueError('Expected finite numeric vector')
-
-    # Scale first to avoid overflow
-    scale = max(abs(x) for x in vector)
-
-    if not scale:
-        raise ValueError('Zero vector')
-
-    scaled = [x / scale for x in vector]
-
-    norm = math.sqrt(
-        math.fsum(x * x for x in scaled)
-    )
-
-    return [
-        x / norm
-        for x in scaled
-    ]
-
 
 # ==========================================================
 # COSINE SIMILARITY
@@ -315,6 +287,7 @@ def match_driver(vector, threshold, margin):
     ).all()
 
     ranked = []
+    invalid_profiles = False
 
     # ------------------------------------------------------
     # So sánh khuôn mặt
@@ -351,12 +324,9 @@ def match_driver(vector, threshold, margin):
             OverflowError,
         ) as exc:
 
-            raise DeviceAPIError(
-                'PROFILE_EMBEDDING_INVALID',
-                'Embedding hồ sơ tài xế không hợp lệ; cần tạo lại hồ sơ.',
-                409,
-                'CONTACT_ADMIN',
-            ) from exc
+            invalid_profiles = True
+            logging.getLogger(__name__).warning('Invalid face embedding for driver_id=%s', driver.pk)
+            continue
 
         ranked.append(
             (
@@ -370,6 +340,12 @@ def match_driver(vector, threshold, margin):
     # ------------------------------------------------------
 
     if not ranked:
+        if invalid_profiles:
+            raise DeviceAPIError(
+                'PROFILE_EMBEDDING_INVALID',
+                'Dữ liệu khuôn mặt không hợp lệ; cần tạo lại hồ sơ.',
+                409, 'CONTACT_ADMIN',
+            )
 
         return (
             'DRIVER_NOT_FOUND',

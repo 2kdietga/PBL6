@@ -53,7 +53,9 @@ class ConsistencyTests(TestCase):
         for obj, action in ((self.face, 'face-approve'), (self.license, 'license-approve'), (self.driver, 'approve')):
             obj.refresh_from_db()
             old_version = revision(obj)
-            obj.save()
+            # Make the revision change deterministic even on a coarse system clock.
+            type(obj).objects.filter(pk=obj.pk).update(updated_at=obj.updated_at + timedelta(seconds=1))
+            obj.refresh_from_db()
             field = 'status' if isinstance(obj, DriverLicense) else 'approval_status'
             previous = getattr(obj, field)
             for token in (old_version, ''):

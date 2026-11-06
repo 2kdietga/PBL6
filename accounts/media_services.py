@@ -1,6 +1,6 @@
 """Cloudinary storage and the embedding contract from mẫu.ipynb."""
 import logging
-import math
+from .face_vectors import normalized_vector
 from uuid import uuid4
 
 import cloudinary
@@ -50,16 +50,11 @@ def extract_embedding(images):
                 'Ảnh và hồ sơ chưa được lưu.'
             )
         vector = response.json().get('vector')
-        if not isinstance(vector, list) or not 1 <= len(vector) <= 4096:
-            raise ValueError('Invalid vector')
-        if any(isinstance(x, bool) or not isinstance(x, (int, float)) or not math.isfinite(x) for x in vector):
-            raise ValueError('Invalid vector values')
-        if not any(x != 0 for x in vector):
-            raise ValueError('Zero vector')
+        normalized_vector(vector)
         return vector
     except requests.RequestException as exc:
         raise MediaError('Không kết nối được dịch vụ nhận diện. Vui lòng thử lại sau.') from exc
-    except (ValueError, AttributeError) as exc:
+    except (ValueError, AttributeError, TypeError, OverflowError) as exc:
         raise MediaError('Dịch vụ nhận diện trả về vector không hợp lệ. Chưa lưu thay đổi.') from exc
     finally:
         for image in images:

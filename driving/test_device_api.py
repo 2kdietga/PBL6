@@ -284,6 +284,10 @@ class DeviceAPITests(TestCase):
         self.assertEqual(self.post().json()['code'], 'VEHICLE_INACTIVE')
         self.hf.assert_not_called()
 
+    def test_invalid_other_profile_does_not_block_valid_driver(self):
+        self.create_driver('broken-profile', [1, 2])
+        self.assertEqual(self.post().json()['code'], 'DRIVER_VERIFIED')
+
     def test_invalid_profile_and_unconfigured_threshold(self):
         FaceProfile.objects.filter(driver=self.driver).update(embedding=[1, 2])
         self.assertEqual(self.post().json()['code'], 'PROFILE_EMBEDDING_INVALID')

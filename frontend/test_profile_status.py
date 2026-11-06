@@ -17,7 +17,7 @@ class ProfileStatusTests(TestCase):
         self.client.force_login(self.admin)
         self.url = reverse('frontend:driver-action', args=[self.driver.pk])
         kind = VehicleType.objects.create(name='Truck', category='TRUCK')
-        self.vehicle = Vehicle.objects.create(vehicle_type=kind, license_plate='TEST', load_capacity=1000)
+        self.vehicle = Vehicle.objects.create(vehicle_type=kind, license_plate='TEST', load_capacity=1000, gross_vehicle_weight=3000)
 
     def approve(self):
         self.driver.refresh_from_db()
@@ -26,7 +26,7 @@ class ProfileStatusTests(TestCase):
 
     def complete(self):
         self.license = DriverLicense.objects.create(
-            driver=self.driver, license_number='123', license_class='C',
+            driver=self.driver, license_number='123', license_class='C', license_standard='VN_2025',
             issued_date=date(2020, 1, 1), expiry_date=timezone.localdate()+timedelta(days=365),
             front_image_url='https://example.com/front', back_image_url='https://example.com/back')
         self.face = FaceProfile.objects.create(driver=self.driver, face_image_url='https://example.com/face', embedding=[1, 2])

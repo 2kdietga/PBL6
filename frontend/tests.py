@@ -72,7 +72,7 @@ class DynamicPageTests(TestCase):
 
     def test_vehicle_creation_validation_and_persistence(self):
         self.client.force_login(self.admin)
-        payload = dict(license_plate='43C-33333', vehicle_type=self.kind.pk, status='ACTIVE', load_capacity='6000')
+        payload = dict(license_plate='43C-33333', vehicle_type=self.kind.pk, status='ACTIVE', load_capacity='6000', gross_vehicle_weight='9000')
         self.assertRedirects(self.client.post(self.url('create', 'vehicles'), payload), self.url('vehicles'))
         self.assertTrue(Vehicle.objects.filter(license_plate='43C-33333').exists())
         self.assertEqual(self.client.post(self.url('create', 'vehicles'), payload).status_code, 200)

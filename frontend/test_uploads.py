@@ -108,8 +108,8 @@ class EmbeddingContractTests(SimpleTestCase):
     @override_settings(FACE_EMBEDDING_URL='https://example.com/extract_profile')
     @patch('accounts.media_services.requests.post')
     def test_notebook_multipart_contract(self, post):
-        post.return_value = Mock(status_code=200, json=lambda: {'vector':[0.2,0.3]})
-        self.assertEqual(extract_embedding([image_file()]), [0.2,0.3])
+        post.return_value = Mock(status_code=200, json=lambda: {'vector':[0.2,0.3] + [0.0] * 510})
+        self.assertEqual(extract_embedding([image_file()]), [0.2,0.3] + [0.0] * 510)
         self.assertEqual([item[0] for item in post.call_args.kwargs['files']], ['files'])
         self.assertEqual(post.call_args.args[0], 'https://example.com/extract_profile')
         self.assertIn('timeout', post.call_args.kwargs)
@@ -123,7 +123,7 @@ class EmbeddingContractTests(SimpleTestCase):
 
     @patch('accounts.media_services.requests.post')
     def test_invalid_vectors_rejected(self, post):
-        for vector in ([], [float('nan')], [[1,2]], [True], [0,0], 'bad'):
+        for vector in ([], [1.0] * 511, [1.0] * 513, [float('nan')] * 512, [[1,2]] * 512, [True] * 512, [0] * 512, 'bad'):
             post.return_value = Mock(status_code=200, json=lambda: {'vector':vector})
             with self.assertRaises(MediaError): extract_embedding([image_file()])
 
