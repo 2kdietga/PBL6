@@ -39,6 +39,9 @@ main{padding:32px 36px;max-width:1460px;min-height:calc(100vh - 135px)}
 .quick-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:28px}
 .quick-links a{background:#fff;border:1px solid var(--line);border-radius:9px;padding:18px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px;color:var(--ink)}
 .quick-links a:hover{border-color:#a9c1b7;background:#fcfdfc}.quick-links strong{font-size:13px;font-weight:600}.quick-links small{font-size:11px;margin-top:4px}.quick-links a>span:last-child{color:var(--green)}
+.quick-links a.has-pending-count{position:relative;padding-right:64px}
+.quick-links .pending-count{position:absolute;top:8px;right:10px;display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;box-sizing:border-box;border-radius:999px;background:#c53030;color:#fff;font-size:11px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;box-shadow:0 2px 5px #c5303026}
+.quick-links .pending-count.is-empty{background:#edf0f2;color:#56616d;box-shadow:none}
 .toolbar{padding:18px 24px;gap:10px}.search-control{flex:1;min-width:180px;position:relative}.search-control svg{position:absolute;top:13px;left:13px;color:#7b898f;pointer-events:none}.search-control .search{width:100%;padding-left:40px;min-width:0}
 .toolbar select{min-width:175px;font-size:13px}.table-scroll{overflow:auto;scrollbar-width:thin;scrollbar-color:#cbd4d9 transparent}
 table{white-space:normal}th{font-size:11px;letter-spacing:.35px;color:#53636e;background:#f8fafb;font-weight:600;padding:13px 22px}

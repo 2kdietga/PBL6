@@ -20,7 +20,7 @@ from accounts.profile_services import save_profile, save_license
 from accounts.concurrency import revision, require_revision
 from driving.models import DrivingSession
 from vehicles.models import Vehicle, VehicleType, DriverVehicleAssignment, Device
-from violations.models import ViolationType
+from violations.models import Violation, ViolationType
 from violations.forms import ViolationTypeForm
 from .forms import RegisterForm, ProfileForm, LicenseForm, VehicleForm, VehicleTypeForm, AssignmentForm, DeviceForm, ChangePasswordForm
 
@@ -110,8 +110,14 @@ def scoped(request, model):
 def dashboard(request):
     vehicles, sessions = scoped(request, Vehicle), scoped(request, DrivingSession)
     stats = [('Phương tiện', vehicles.count()), ('Phiên đang lái', sessions.filter(status='STARTED').count()), ('Phiên đã kết thúc', sessions.filter(status='ENDED').count())]
-    if is_admin(request.user): stats.append(('Hồ sơ chờ duyệt', DriverProfile.objects.filter(approval_status='PENDING').count()))
-    return page(request, 'dashboard.html', title='Tổng quan', stats=stats, sessions=sessions.select_related('assignment__driver', 'assignment__vehicle').order_by('-started_at')[:10])
+    pending_profiles = pending_violations = 0
+    if is_admin(request.user):
+        pending_profiles = DriverProfile.objects.filter(approval_status='PENDING').count()
+        pending_violations = Violation.objects.filter(status=Violation.Status.PENDING).count()
+        stats.append(('Hồ sơ chờ duyệt', pending_profiles))
+    return page(request, 'dashboard.html', title='Tổng quan', stats=stats,
+                pending_profiles=pending_profiles, pending_violations=pending_violations,
+                sessions=sessions.select_related('assignment__driver', 'assignment__vehicle').order_by('-started_at')[:10])
 
 
 ENTITIES = {
