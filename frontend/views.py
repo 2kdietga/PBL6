@@ -12,6 +12,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from django.views.decorators.cache import never_cache
 from accounts.models import User, DriverProfile, DriverLicense, FaceProfile
 from accounts.templatetags.status_tags import status_badge
 from accounts.media_services import MediaError
@@ -45,7 +46,8 @@ def page(request, template, **context):
     admin = is_admin(request.user)
     current = request.resolver_match.url_name
     active = {'home': 'dashboard', 'driver-detail': 'drivers', 'driver-action': 'drivers',
-              'violation-detail': 'violations', 'violation-review': 'violations', 'face': 'profile'}.get(current, current)
+              'violation-detail': 'violations', 'violation-review': 'violations', 'face': 'profile',
+              'device-key': 'devices'}.get(current, current)
     if current in ('create', 'edit'):
         active = request.resolver_match.kwargs.get('key', current)
     context.update(is_admin=admin, navigation=ADMIN_MENU if admin else DRIVER_MENU, active_page=active)
@@ -173,7 +175,38 @@ def edit(request, key, pk=None):
     now = timezone.now()
     can_end = bool(key == 'assignments' and obj and obj.start_at < now and (obj.end_at is None or obj.end_at > now))
     return page(request, 'form.html', title=('Cập nhật · ' if pk else 'Thêm · ') + title, form=form,
+                key_device=obj if key == 'devices' else None, key_version=revision(obj) if key == 'devices' else None,
                 end_assignment=obj if can_end else None, back_url=reverse('frontend:' + key))
+
+
+@never_cache
+@admin_required
+@require_POST
+def device_key(request, pk):
+    from vehicles.device_keys import replace_key
+    if not request.user.is_active:
+        raise PermissionDenied
+    action = request.POST.get('action')
+    if action not in ('issue', 'rotate', 'revoke'):
+        raise PermissionDenied
+    with transaction.atomic():
+        device = get_object_or_404(Device.objects.select_for_update(), pk=pk)
+        try:
+            require_revision(request.POST.get('version'), device)
+            if action == 'issue' and device.api_key_hash:
+                raise ValidationError('Thiết bị đã có khóa. Hãy tải lại trang để cấp lại.')
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+            return redirect('frontend:edit', key='devices', pk=pk)
+        secret = replace_key(device, revoke=action == 'revoke')
+    if action == 'revoke':
+        messages.success(request, 'Đã thu hồi khóa API của thiết bị.')
+        return redirect('frontend:edit', key='devices', pk=pk)
+    # Only this response contains the plaintext; never store it in session/messages.
+    response = page(request, 'device_key.html', title='Khóa API thiết bị',
+                    device=device, device_token=secret)
+    response['Referrer-Policy'] = 'no-referrer'
+    return response
 
 
 @admin_required

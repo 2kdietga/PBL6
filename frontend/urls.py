@@ -5,6 +5,7 @@ from violations import views as violation_views
 app_name = 'frontend'
 
 urlpatterns = [
+    path('devices/<int:pk>/key/', views.device_key, name='device-key'),
     path('', views.dashboard, name='home'),
     path('dashboard/', views.dashboard, name='dashboard'),
     path('login/', views.SignIn.as_view(), name='login'),

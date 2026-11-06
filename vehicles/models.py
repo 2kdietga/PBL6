@@ -119,7 +119,7 @@ class Device(models.Model):
                 self.clean()
             super().save(*args, **kwargs)
 
-    # Only the hash is stored; the provisioning command prints the secret once.
+    # Only hashes are stored; web/CLI provisioning reveals the secret once.
     api_key_hash = models.CharField(max_length=128, blank=True, default='', editable=False)
     # Indexed fingerprint of the random token for identification without a device code.
     api_key_digest = models.CharField(max_length=64, unique=True, null=True, blank=True, editable=False)

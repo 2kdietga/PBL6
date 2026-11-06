@@ -1,0 +1,17 @@
+<section class="card">
+  <div class="card-header"><h2>Khóa API</h2><span>{% if key_device.api_key_hash %}Đã cấp khóa{% else %}Chưa có khóa{% endif %}</span></div>
+  <div class="card-body">
+    <p>Dùng khóa này để kết nối Raspberry Pi với server. Khóa mới chỉ hiển thị một lần sau khi cấp.</p>
+    <form method="post" action="{% url 'frontend:device-key' key_device.pk %}">
+      {% csrf_token %}<input type="hidden" name="version" value="{{ key_version }}">
+      <div class="form-actions">
+        {% if key_device.api_key_hash %}
+          <button class="button primary" name="action" value="rotate" data-confirm="Cấp lại khóa? Khóa cũ sẽ hết hiệu lực ngay. Bạn cần cập nhật khóa mới trên Pi.">Cấp lại token</button>
+          <button class="button danger" name="action" value="revoke" data-confirm="Thu hồi khóa? Thiết bị sẽ không thể gọi API cho đến khi được cấp khóa mới.">Thu hồi</button>
+        {% else %}
+          <button class="button primary" name="action" value="issue">Cấp token</button>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</section>

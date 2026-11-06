@@ -1,10 +1,8 @@
-import secrets
-from hashlib import sha256
-
-from django.contrib.auth.hashers import make_password
+from django.db import transaction
 from django.core.management.base import BaseCommand, CommandError
 
 from vehicles.models import Device
+from vehicles.device_keys import replace_key
 
 
 class Command(BaseCommand):
@@ -14,13 +12,11 @@ class Command(BaseCommand):
         parser.add_argument('device_code')
         parser.add_argument('--revoke', action='store_true')
 
+    @transaction.atomic
     def handle(self, *args, **options):
         try:
-            device = Device.objects.get(device_code=options['device_code'])
+            device = Device.objects.select_for_update().get(device_code=options['device_code'])
         except Device.DoesNotExist as exc:
             raise CommandError('Device does not exist; create it in the web interface first.') from exc
-        secret = '' if options['revoke'] else secrets.token_urlsafe(32)
-        device.api_key_hash = make_password(secret) if secret else ''
-        device.api_key_digest = sha256(secret.encode()).hexdigest() if secret else None
-        device.save(update_fields=['api_key_hash', 'api_key_digest', 'updated_at'])
+        secret = replace_key(device, revoke=options['revoke'])
         self.stdout.write(secret or 'API key revoked.')

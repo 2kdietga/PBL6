@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<section class="card">
+  <div class="card-header"><h1>Khóa API · {{ device.device_code }}</h1></div>
+  <div class="card-body">
+    <p>Đã cấp khóa cho {{ device.name }}. Sao chép và lưu vào cấu hình Pi trước khi rời trang. Bạn không thể xem lại khóa này.</p>
+    <label for="device-token">Device token</label>
+    <textarea id="device-token" rows="2" readonly autocomplete="off" spellcheck="false">{{ device_token }}</textarea>
+    <div class="form-actions">
+      <button class="button primary" type="button" id="copy-device-token">Sao chép token</button>
+      <a class="button" href="{% url 'frontend:edit' 'devices' device.pk %}">Về thiết bị</a>
+    </div>
+    <p id="copy-token-status" role="status" aria-live="polite"></p>
+    <p>Trên Pi, đặt giá trị này vào <code>DEVICE_API_KEY</code>. Khi gọi API, gửi header <code>Authorization: Bearer &lt;token&gt;</code>.</p>
+  </div>
+</section>
+<script src="{% static 'js/device-key.js' %}" defer></script>
+{% endblock %}
