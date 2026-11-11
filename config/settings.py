@@ -29,11 +29,12 @@ SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 DEBUG = os.getenv("DJANGO_DEBUG", "false").lower() == "true"
 
 ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.getenv(
-        "DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1"
-    ).split(",")
-    if host.strip()
+    # host.strip()
+    # for host in os.getenv(
+    #     "DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1"
+    # ).split(",")
+    # if host.strip()
+    '*'
 ]
 
 render_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME")

@@ -1,16 +1,9 @@
-erDiagram
- User ||--o| DriverProfile : user
- DriverProfile ||--o| DriverLicense : driver
- DriverProfile ||--o| FaceProfile : driver
- VehicleType ||--o{ Vehicle : vehicle_type
- Vehicle ||--o| Device : vehicle
- DriverProfile ||--o{ DriverVehicleAssignment : driver
- Vehicle ||--o{ DriverVehicleAssignment : vehicle
- DriverVehicleAssignment ||--o{ DrivingSession : assignment
- Vehicle ||--o{ DrivingSession : vehicle
- DrivingSession ||--o{ Violation : session
- ViolationType ||--o{ Violation : violation_type
- Violation ||--o{ Evidence : violation
- Violation ||--o| Appeal : violation
- Violation ||--o{ ViolationReview : violation
- User ||--o{ ViolationReview : reviewer
+flowchart TB
+ D[Tài xế] ---|0..1 mỗi loại| F[GPLX & khuôn mặt]
+ D ---|1:N| A[Phân công]
+ V[Phương tiện] ---|1:N| A
+ V ---|1:0..1| DE[Thiết bị]
+ A ---|1:N| S[Phiên lái]
+ S ---|1:N| I[Vi phạm]
+ I ---|1:N| E[Bằng chứng]
+ I ---|1:N| R[Lịch sử xét duyệt]

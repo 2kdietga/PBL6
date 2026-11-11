@@ -1,8 +1,6 @@
 flowchart TB
- W[Trình duyệt: Admin / Tài xế] -->|Yêu cầu web| D[Django: giao diện, nghiệp vụ, API]
- P[Raspberry Pi + Camera] -->|API thiết bị + JPEG| D
- D -->|ORM| DB[(PostgreSQL)]
- D -->|Ảnh hồ sơ, GPLX| C[Cloudinary]
- D -->|Ảnh| F[Face Embedding API]
- F -->|Vector| D
- D -->|Kết quả nhận diện| P
+ W[Web quản trị / tài xế] --> D[Django: Web · Nghiệp vụ · API]
+ P[Raspberry Pi] --> D
+ D --> DB[(PostgreSQL)]
+ D --> C[Cloudinary]
+ D --> F[Face API]

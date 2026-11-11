@@ -31,8 +31,9 @@ Không gửi driver_id, vehicle_id, status, severity hoặc URL ảnh. Tổng re
 không quá 2 MiB + 16 KiB, phải có Content-Length. Thư viện requests tự đặt các
 header multipart; không tự đặt Content-Type.
 
-Thời điểm phải nằm trong phiên, không cũ quá 24 giờ, không nhanh hơn server quá
-5 giây. Phiên đã kết thúc vẫn nhận nếu thời điểm vi phạm nằm trong phiên.
+Thời điểm được lệch tối đa 3 phút trước lúc mở phiên hoặc sau lúc kết thúc phiên,
+không cũ quá 24 giờ và không nhanh hơn server quá 3 phút.
+Phiên đã kết thúc vẫn nhận nếu thời điểm vi phạm nằm trong khoảng cho phép này.
 Vẫn nhận bằng chứng khi thiết bị chuyển sang bảo trì hoặc xe ngừng hoạt động;
 token phải còn hiệu lực, thiết bị phải còn thuộc xe của phiên.
 

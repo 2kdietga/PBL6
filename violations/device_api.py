@@ -1,6 +1,7 @@
 """Authenticated Pi events: bounded JPEG upload and retry-safe pending violations."""
 import math
 import logging
+from datetime import timedelta
 from io import BytesIO
 from uuid import UUID
 
@@ -19,6 +20,7 @@ from driving.session_services import locked_device
 from .models import Evidence, Violation, ViolationType
 
 MAX_IMAGE_BYTES = 2 * 1024 * 1024
+EVENT_CLOCK_SKEW = timedelta(minutes=3)
 FIELDS = {'event_id', 'session_id', 'violation_code', 'detected_at', 'confidence'}
 logger = logging.getLogger(__name__)
 
@@ -65,17 +67,38 @@ def event_response(request, violation, *, created=False):
         data={'violation_id': violation.pk, 'status': violation.status})
 
 
-def check_session(device, session_id, detected_at, *, lock=False):
+def check_session(device, session_id, detected_at, *, lock=False, request_id=None):
     rows = DrivingSession.objects
     if lock:
         rows = rows.select_for_update()
     session = rows.filter(pk=session_id, source_device=device, vehicle_id=device.vehicle_id).first()
     if session is None:
         raise DeviceAPIError('SESSION_NOT_FOUND', 'Không tìm thấy phiên lái của thiết bị.', 404)
-    age = (timezone.now() - detected_at).total_seconds()
-    if (age < -5 or age > 24 * 3600 or detected_at < session.started_at
-            or (session.ended_at is not None and detected_at > session.ended_at)):
-        raise DeviceAPIError('INVALID_EVENT_TIME', 'Thời điểm vi phạm phải nằm trong phiên và không cũ quá 24 giờ.', 422)
+    server_now = timezone.now()
+    age = (server_now - detected_at).total_seconds()
+    reasons = []
+    if age < -EVENT_CLOCK_SKEW.total_seconds():
+        reasons.append('FUTURE_TIME_OVER_180_SECONDS')
+    if age > 24 * 3600:
+        reasons.append('EVENT_OLDER_THAN_24_HOURS')
+    if detected_at < session.started_at - EVENT_CLOCK_SKEW:
+        reasons.append('BEFORE_SESSION_START')
+    if session.ended_at is not None and detected_at > session.ended_at + EVENT_CLOCK_SKEW:
+        reasons.append('AFTER_SESSION_END')
+    if reasons:
+        logger.warning(
+            'Violation rejected: code=INVALID_EVENT_TIME reasons=%s request_id=%s '
+            'device_id=%s session_id=%s detected_at=%s server_time=%s '
+            'age_seconds=%.3f session_started_at=%s session_ended_at=%s '
+            'seconds_since_session_start=%.3f',
+            ','.join(reasons), request_id, device.pk, session_id,
+            detected_at.isoformat(), server_now.isoformat(), age,
+            session.started_at.isoformat(),
+            session.ended_at.isoformat() if session.ended_at else None,
+            (detected_at - session.started_at).total_seconds(),
+        )
+        raise DeviceAPIError('INVALID_EVENT_TIME',
+            'Thời điểm vi phạm được lệch tối đa 3 phút trước/sau phiên và so với giờ server; không cũ quá 24 giờ.', 422)
     return session
 
 
@@ -101,7 +124,8 @@ def process_event(request):
     existing = Violation.objects.filter(source_device=request.device, event_id=event_id).first()
     if existing:
         return event_response(request, existing)
-    session = check_session(request.device, session_id, detected_at)
+    session = check_session(request.device, session_id, detected_at,
+                            request_id=request.device_request_id)
     kind = ViolationType.objects.filter(code=request.POST['violation_code']).first()
     if kind is None:
         raise DeviceAPIError('UNKNOWN_VIOLATION_CODE', 'Mã loại vi phạm chưa được khai báo.', 422)
@@ -120,7 +144,8 @@ def process_event(request):
             if existing:
                 result = event_response(request, existing)
             else:
-                session = check_session(device, session_id, detected_at, lock=True)
+                session = check_session(device, session_id, detected_at, lock=True,
+                                        request_id=request.device_request_id)
                 violation = Violation.objects.create(session=session, source_device=device,
                     event_id=event_id, confidence=confidence, violation_type=kind,
                     detected_at=detected_at, severity='MEDIUM', status='PENDING')
@@ -151,6 +176,18 @@ def record(request):
     request.upload_handlers = [handler]
     try:
         return process_event(request)
+    except DeviceAPIError as exc:
+        # Log only bounded metadata, never credentials or image bytes.
+        logger.warning(
+            'Violation request failed: code=%s http_status=%s request_id=%s '
+            'device_id=%s event_id=%r session_id=%r violation_code=%r detected_at=%r',
+            exc.code, exc.status, request.device_request_id, request.device.pk,
+            request.POST.get('event_id', '')[:100],
+            request.POST.get('session_id', '')[:100],
+            request.POST.get('violation_code', '')[:100],
+            request.POST.get('detected_at', '')[:100],
+        )
+        raise
     except DatabaseError as exc:
         logger.error('Could not persist device violation; request_id=%s', request.device_request_id)
         raise DeviceAPIError('DATABASE_UNAVAILABLE', 'Chưa lưu được vi phạm. Hãy gửi lại cùng event_id.',

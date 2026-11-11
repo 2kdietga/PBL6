@@ -1,43 +1,36 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1160" viewBox="0 0 1800 1160"><rect width="100%" height="100%" fill="white"/>
-<text x="900.0" y="48" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#18334D">TUẦN TỰ NHẬN DIỆN TÀI XẾ</text>
-<text x="900.0" y="92" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#627182">Luồng thành công; ảnh nhận diện được xử lý trong bộ nhớ</text>
-<rect x="40" y="160" width="300" height="85" rx="15" fill="#EDF5FA" stroke="#25638A" stroke-width="3"/>
-<text x="190.0" y="202.5" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="26" font-weight="400" fill="#18334D">Raspberry Pi</text>
-<polyline points="190,245 190,980" fill="none" stroke="#627182" stroke-width="3" stroke-dasharray="8 8"/>
-<rect x="520" y="160" width="300" height="85" rx="15" fill="#EDF5FA" stroke="#25638A" stroke-width="3"/>
-<text x="670.0" y="202.5" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="26" font-weight="400" fill="#18334D">Django API</text>
-<polyline points="670,245 670,980" fill="none" stroke="#627182" stroke-width="3" stroke-dasharray="8 8"/>
-<rect x="1010" y="160" width="300" height="85" rx="15" fill="#EDF5FA" stroke="#25638A" stroke-width="3"/>
-<text x="1160.0" y="202.5" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="26" font-weight="400" fill="#18334D">Face API</text>
-<polyline points="1160,245 1160,980" fill="none" stroke="#627182" stroke-width="3" stroke-dasharray="8 8"/>
-<rect x="1450" y="160" width="300" height="85" rx="15" fill="#EDF5FA" stroke="#25638A" stroke-width="3"/>
-<text x="1600.0" y="202.5" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="26" font-weight="400" fill="#18334D">PostgreSQL</text>
-<polyline points="1600,245 1600,980" fill="none" stroke="#627182" stroke-width="3" stroke-dasharray="8 8"/>
-<polyline points="190,320 670,320" fill="none" stroke="#25638A" stroke-width="3"/>
-<polygon points="670,320 656.4932934647098,326.52448301166845 656.4932934647098,313.47551698833155" fill="#25638A"/>
-<text x="430.0" y="295" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#18334D">1. Khóa API + ảnh JPEG</text>
-<rect x="490" y="360" width="360" height="80" rx="15" fill="#EDF5FA" stroke="#25638A" stroke-width="3"/>
-<text x="670.0" y="384.5" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#18334D">2. Kiểm tra thiết bị,</text>
-<text x="670.0" y="415.5" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#18334D">xe và dữ liệu đầu vào</text>
-<polyline points="670,490 1160,490" fill="none" stroke="#25638A" stroke-width="3"/>
-<polygon points="1160,490 1146.49329346471,496.52448301166845 1146.49329346471,483.47551698833155" fill="#25638A"/>
-<text x="915.0" y="465" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#18334D">3. POST /extract_single</text>
-<polyline points="1160,590 670,590" fill="none" stroke="#25638A" stroke-width="3" stroke-dasharray="8 8"/>
-<polygon points="670,590 683.5067065352902,583.4755169883315 683.5067065352902,596.5244830116685" fill="#25638A"/>
-<text x="915.0" y="565" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#18334D">4. Trả vector đặc trưng</text>
-<polyline points="670,690 1600,690" fill="none" stroke="#25638A" stroke-width="3"/>
-<polygon points="1600,690 1586.49329346471,696.5244830116685 1586.49329346471,683.4755169883315" fill="#25638A"/>
-<text x="1135.0" y="665" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#18334D">5. Đọc hồ sơ có embedding</text>
-<polyline points="1600,780 670,780" fill="none" stroke="#25638A" stroke-width="3" stroke-dasharray="8 8"/>
-<polygon points="670,780 683.5067065352902,773.4755169883315 683.5067065352902,786.5244830116685" fill="#25638A"/>
-<text x="1135.0" y="755" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#18334D">6. Trả dữ liệu hồ sơ</text>
-<rect x="480" y="825" width="380" height="80" rx="15" fill="#EDF5FA" stroke="#25638A" stroke-width="3"/>
-<text x="670.0" y="849.5" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#18334D">7. So khớp cosine</text>
-<text x="670.0" y="880.5" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#18334D">Kiểm tra ngưỡng và biên</text>
-<polyline points="670,960 190,960" fill="none" stroke="#25638A" stroke-width="3" stroke-dasharray="8 8"/>
-<polygon points="190,960 203.50670653529016,953.4755169883315 203.50670653529016,966.5244830116685" fill="#25638A"/>
-<text x="430.0" y="935" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#18334D">8. Trả JSON nhận diện</text>
-<rect x="160" y="1030" width="1480" height="70" rx="15" fill="#FFF5E5" stroke="#25638A" stroke-width="3"/>
-<text x="900.0" y="1065.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="24" font-weight="400" fill="#18334D">Chưa kiểm tra quyền lái theo phân công; chưa tự tạo phiên lái trong luồng này.</text>
-<text x="900.0" y="1130" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="19" font-weight="400" fill="#627182">SaveLife • Sơ đồ theo mã nguồn dự án • Dùng kèm mô tả phạm vi triển khai</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="940" viewBox="0 0 1600 940"><rect width="100%" height="100%" fill="white"/>
+<text x="800.0" y="48" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#18334D">NHẬN DIỆN VÀ MỞ PHIÊN LÁI</text>
+<text x="800.0" y="92" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#627182">Luồng tổng quát của API mở phiên</text>
+<rect x="80" y="180" width="380" height="120" rx="15" fill="#EDF5FA" stroke="#25638A" stroke-width="3"/>
+<text x="270.0" y="221.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="29" font-weight="400" fill="#18334D">Raspberry Pi</text>
+<text x="270.0" y="259.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="29" font-weight="400" fill="#18334D">Gửi ảnh</text>
+<rect x="610" y="180" width="380" height="120" rx="15" fill="#EDF5FA" stroke="#25638A" stroke-width="3"/>
+<text x="800.0" y="221.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="29" font-weight="400" fill="#18334D">Nhận diện</text>
+<text x="800.0" y="259.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="29" font-weight="400" fill="#18334D">Face API + so khớp</text>
+<rect x="1140" y="180" width="380" height="120" rx="15" fill="#EDF5FA" stroke="#25638A" stroke-width="3"/>
+<text x="1330.0" y="240.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="29" font-weight="400" fill="#18334D">Kiểm tra quyền lái</text>
+<rect x="1140" y="560" width="380" height="120" rx="15" fill="#EDF5FA" stroke="#25638A" stroke-width="3"/>
+<text x="1330.0" y="620.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="29" font-weight="400" fill="#18334D">Mở phiên</text>
+<rect x="610" y="560" width="380" height="120" rx="15" fill="#EDF5FA" stroke="#25638A" stroke-width="3"/>
+<text x="800.0" y="620.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="29" font-weight="400" fill="#18334D">Kết thúc phiên</text>
+<polyline points="460,240 610,240" fill="none" stroke="#25638A" stroke-width="3"/>
+<polygon points="610,240 596.4932934647098,246.52448301166845 596.4932934647098,233.47551698833155" fill="#25638A"/>
+<polyline points="990,240 1140,240" fill="none" stroke="#25638A" stroke-width="3"/>
+<polygon points="1140,240 1126.49329346471,246.52448301166845 1126.49329346471,233.47551698833155" fill="#25638A"/>
+<polyline points="1330,300 1330,560" fill="none" stroke="#25638A" stroke-width="3"/>
+<polygon points="1330,560 1323.4755169883315,546.4932934647098 1336.5244830116685,546.4932934647098" fill="#25638A"/>
+<text x="1400" y="430" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="24" font-weight="400" fill="#18334D">Hợp lệ</text>
+<polyline points="1140,620 990,620" fill="none" stroke="#25638A" stroke-width="3"/>
+<polygon points="990,620 1003.5067065352902,613.4755169883315 1003.5067065352902,626.5244830116685" fill="#25638A"/>
+<text x="1065" y="690" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#18334D">Pi yêu cầu</text>
+<rect x="80" y="560" width="380" height="120" rx="15" fill="#FFF0E3" stroke="#25638A" stroke-width="3"/>
+<text x="270.0" y="620.0" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="29" font-weight="400" fill="#18334D">Không mở phiên</text>
+<polyline points="800,300 800,420 270,420 270,560" fill="none" stroke="#25638A" stroke-width="3" stroke-dasharray="8 8"/>
+<polygon points="270,560 263.47551698833155,546.4932934647098 276.52448301166845,546.4932934647098" fill="#25638A"/>
+<text x="520" y="390" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#18334D">Không nhận diện được</text>
+<polyline points="1140,270 1060,270 1060,480 390,480 390,560" fill="none" stroke="#25638A" stroke-width="3" stroke-dasharray="8 8"/>
+<polygon points="390,560 383.47551698833155,546.4932934647098 396.52448301166845,546.4932934647098" fill="#25638A"/>
+<text x="730" y="510" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#18334D">Không đủ điều kiện</text>
+<text x="800" y="820" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="27" font-weight="400" fill="#627182">Quyền lái: hồ sơ • GPLX • phân công • xe</text>
+<text x="800.0" y="914" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="18" font-weight="400" fill="#627182">SaveLife</text>
 </svg>

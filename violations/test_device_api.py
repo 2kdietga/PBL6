@@ -80,7 +80,7 @@ class DeviceViolationTests(TestCase):
             ({'event_id': 'bad'}, 400), ({'session_id': '-1'}, 400),
             ({'detected_at': '2026-01-01T00:00:00'}, 400),
             ({'status': 'APPROVED'}, 400), ({'violation_code': 'UNKNOWN'}, 422),
-            ({'detected_at': (timezone.now() + timedelta(minutes=1)).isoformat()}, 422),
+            ({'detected_at': (timezone.now() + timedelta(minutes=4)).isoformat()}, 422),
             ({'detected_at': (timezone.now() - timedelta(hours=2)).isoformat()}, 422),
             ({'image': SimpleUploadedFile('x.jpg', b'broken', 'image/jpeg')}, 415),
             ({'image': SimpleUploadedFile('x.jpg', b'x' * (2 * 1024 * 1024 + 1), 'image/jpeg')}, 413)]
@@ -91,13 +91,38 @@ class DeviceViolationTests(TestCase):
         self.upload.assert_not_called()
 
     def test_ended_session_accepts_only_events_inside_session(self):
-        self.session.ended_at = timezone.now() - timedelta(minutes=1)
+        self.session.ended_at = timezone.now() - timedelta(minutes=4)
         self.session.status = 'ENDED'
         self.session.save()
         self.assertEqual(self.send().status_code, 422)
         self.device.status = 'MAINTENANCE'
         self.device.save()
-        self.assertEqual(self.send(detected_at=(timezone.now() - timedelta(minutes=2)).isoformat()).status_code, 201)
+        self.assertEqual(self.send(detected_at=(timezone.now() - timedelta(minutes=5)).isoformat()).status_code, 201)
+
+    def test_event_clock_skew_boundaries(self):
+        now = timezone.now()
+        self.session.started_at = now - timedelta(minutes=10)
+        self.session.ended_at = now - timedelta(minutes=5)
+        self.session.status = 'ENDED'
+        self.session.save()
+        cases = [
+            (self.session.started_at - timedelta(seconds=180), 201),
+            (self.session.started_at - timedelta(seconds=181), 422),
+            (self.session.ended_at + timedelta(seconds=180), 201),
+            (self.session.ended_at + timedelta(seconds=181), 422),
+        ]
+        for detected_at, expected in cases:
+            with self.subTest(detected_at=detected_at):
+                response = self.send(event_id=str(uuid4()), detected_at=detected_at.isoformat())
+                self.assertEqual(response.status_code, expected, response.content)
+        # Reset the fixture directly; ended sessions are immutable through save().
+        DrivingSession.objects.filter(pk=self.session.pk).update(ended_at=None, status='STARTED')
+        with patch('violations.device_api.timezone.now', return_value=now):
+            for seconds, expected in [(180, 201), (181, 422), (-86401, 422)]:
+                with self.subTest(seconds=seconds):
+                    response = self.send(event_id=str(uuid4()),
+                        detected_at=(now + timedelta(seconds=seconds)).isoformat())
+                    self.assertEqual(response.status_code, expected, response.content)
 
     def test_storage_failure_and_database_failure_leave_no_partial_record(self):
         self.upload.side_effect = MediaError('offline')
