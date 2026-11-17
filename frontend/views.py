@@ -38,8 +38,8 @@ def admin_required(view):
     return wrapped
 
 
-ADMIN_MENU = [('dashboard', 'Tổng quan'), ('drivers', 'Tài xế'), ('vehicles', 'Phương tiện'), ('assignments', 'Phân công'), ('sessions', 'Phiên lái'), ('violations', 'Vi phạm'), ('devices', 'Thiết bị'), ('catalogs', 'Loại xe'), ('violation-types', 'Loại vi phạm'), ('appeals', 'Kháng cáo'), ('password-change', 'Đổi mật khẩu')]
-DRIVER_MENU = [('dashboard', 'Tổng quan'), ('profile', 'Hồ sơ cá nhân'), ('license', 'Giấy phép lái xe'), ('vehicles', 'Xe được giao'), ('sessions', 'Phiên lái của tôi'), ('violations', 'Vi phạm của tôi'), ('appeals', 'Kháng cáo'), ('password-change', 'Đổi mật khẩu')]
+ADMIN_MENU = [('dashboard', 'Tổng quan'), ('drivers', 'Tài xế'), ('vehicles', 'Phương tiện'), ('assignments', 'Phân công'), ('shifts', 'Lịch lái'), ('sessions', 'Phiên lái'), ('violations', 'Vi phạm'), ('devices', 'Thiết bị'), ('catalogs', 'Loại xe'), ('violation-types', 'Loại vi phạm'), ('appeals', 'Kháng cáo'), ('password-change', 'Đổi mật khẩu')]
+DRIVER_MENU = [('dashboard', 'Tổng quan'), ('profile', 'Hồ sơ cá nhân'), ('license', 'Giấy phép lái xe'), ('vehicles', 'Xe được giao'), ('shifts', 'Lịch lái'), ('sessions', 'Phiên lái của tôi'), ('violations', 'Vi phạm của tôi'), ('appeals', 'Kháng cáo'), ('password-change', 'Đổi mật khẩu')]
 
 
 def page(request, template, **context):
@@ -47,7 +47,7 @@ def page(request, template, **context):
     current = request.resolver_match.url_name
     active = {'home': 'dashboard', 'driver-detail': 'drivers', 'driver-action': 'drivers',
               'violation-detail': 'violations', 'violation-review': 'violations', 'face': 'profile',
-              'appeal-submit': 'violations', 'appeal-review': 'appeals', 'device-key': 'devices'}.get(current, current)
+              'appeal-submit': 'violations', 'appeal-review': 'appeals', 'shift-create': 'shifts', 'shift-edit': 'shifts', 'shift-detail': 'shifts', 'shift-action': 'shifts', 'shift-report': 'shifts', 'device-key': 'devices'}.get(current, current)
     if current in ('create', 'edit'):
         active = request.resolver_match.kwargs.get('key', current)
     context.update(is_admin=admin, navigation=ADMIN_MENU if admin else DRIVER_MENU, active_page=active)
@@ -227,8 +227,12 @@ def end_assignment(request, pk):
             messages.error(request, 'Phân công chưa bắt đầu, không thể kết thúc ngay.')
         else:
             assignment.end_at = now
-            assignment.save(update_fields=['end_at', 'updated_at'])
-            messages.success(request, 'Đã kết thúc phân công ngay tại thời điểm hiện tại.')
+            try:
+                assignment.save(update_fields=['end_at', 'updated_at'])
+            except ValidationError as exc:
+                messages.error(request, ' '.join(exc.messages))
+            else:
+                messages.success(request, 'Đã kết thúc phân công ngay tại thời điểm hiện tại.')
     return redirect('frontend:assignments')
 
 

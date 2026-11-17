@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django import forms
 
-from .models import DrivingSession
+from .models import DrivingSession, DrivingShift, ShiftAudit
 
 
 class DrivingSessionForm(forms.ModelForm):
@@ -24,7 +24,7 @@ class DrivingSessionAdmin(admin.ModelAdmin):
     list_filter = ('status',)
     search_fields = ('assignment__driver__full_name', 'vehicle__license_plate', 'source_device__device_code')
     autocomplete_fields = ('assignment',)
-    readonly_fields = ('vehicle', 'source_device', 'created_at', 'updated_at')
+    readonly_fields = ('vehicle', 'source_device', 'shift', 'created_at', 'updated_at')
     list_select_related = ('assignment__driver', 'assignment__vehicle', 'vehicle', 'source_device')
 
     def get_readonly_fields(self, request, obj=None):
@@ -34,3 +34,24 @@ class DrivingSessionAdmin(admin.ModelAdmin):
             if obj.status == 'ENDED':
                 fields += ('status', 'started_at', 'ended_at')
         return fields
+
+
+@admin.register(DrivingShift)
+class DrivingShiftAdmin(admin.ModelAdmin):
+    list_display = ('id', 'assignment', 'start_at', 'end_at', 'cancelled', 'decision')
+    list_filter = ('cancelled', 'decision')
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ShiftAudit)
+class ShiftAuditAdmin(DrivingShiftAdmin):
+    list_display = ('id', 'shift', 'actor_name', 'action', 'created_at')
+    list_filter = ('action',)

@@ -1,10 +1,17 @@
 from django.urls import path
 from . import views
 from violations import views as violation_views
+from driving import shift_views
 
 app_name = 'frontend'
 
 urlpatterns = [
+    path('shifts/', shift_views.calendar, name='shifts'),
+    path('shifts/new/', shift_views.edit, name='shift-create'),
+    path('shifts/report/', shift_views.report, name='shift-report'),
+    path('shifts/<int:pk>/', shift_views.detail, name='shift-detail'),
+    path('shifts/<int:pk>/edit/', shift_views.edit, name='shift-edit'),
+    path('shifts/<int:pk>/action/', shift_views.action, name='shift-action'),
     path('devices/<int:pk>/key/', views.device_key, name='device-key'),
     path('', views.dashboard, name='home'),
     path('dashboard/', views.dashboard, name='dashboard'),

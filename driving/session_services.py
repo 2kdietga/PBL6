@@ -19,6 +19,7 @@ def deny_driver(reason, message):
 def session_data(session):
     return {
         'session_id': session.pk,
+        'shift_id': session.shift_id,
         'status': session.status,
         'vehicle_id': session.vehicle_id,
         'driver': {'id': session.assignment.driver_id, 'full_name': session.assignment.driver.full_name},
@@ -86,7 +87,11 @@ def start_session(original_device, matched_driver):
         raise DeviceAPIError('NO_ACTIVE_ASSIGNMENT', 'Tài xế chưa được phân công xe tại thời điểm này.', 403, 'CONTACT_ADMIN')
     if len(assignments) != 1:
         raise DeviceAPIError('ASSIGNMENT_AMBIGUOUS', 'Có nhiều phân công trùng thời gian. Cần admin kiểm tra.', 409, 'CONTACT_ADMIN')
-    return DrivingSession.objects.create(assignment=assignments[0], source_device=device, started_at=now)
+    if DrivingSession.objects.filter(assignment__driver=driver, status='STARTED').exists():
+        raise DeviceAPIError('DRIVER_SESSION_ALREADY_ACTIVE', 'Tài xế còn phiên lái chưa kết thúc trên xe khác.', 409, 'CONTACT_ADMIN')
+    from .shift_services import select_shift
+    shift = select_shift(assignments[0], now)
+    return DrivingSession.objects.create(assignment=assignments[0], shift=shift, source_device=device, started_at=now)
 
 
 @transaction.atomic

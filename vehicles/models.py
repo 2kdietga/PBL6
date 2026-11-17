@@ -203,6 +203,11 @@ class DriverVehicleAssignment(models.Model):
                     for field in ('driver_id', 'vehicle_id', 'start_at')
                 ):
                     raise ValidationError('Phân công đã có phiên lái: không được đổi tài xế, xe hoặc thời gian bắt đầu.')
+                if old.shifts.exists():
+                    if any(getattr(old, field) != getattr(self, field) for field in ('driver_id', 'vehicle_id', 'start_at')):
+                        raise ValidationError('Phân công đã có lịch ca: không được đổi tài xế, xe hoặc ngày bắt đầu.')
+                    if self.end_at and old.shifts.filter(cancelled=False, end_at__gt=self.end_at).exists():
+                        raise ValidationError('Còn ca nằm ngoài ngày kết thúc mới. Cần xử lý các ca trước khi kết thúc phân công.')
             super().save(*args, **kwargs)
 
     def __str__(self):

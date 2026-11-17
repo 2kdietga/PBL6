@@ -15,7 +15,7 @@ from django.utils import timezone
 from accounts.models import User, DriverProfile, DriverLicense, FaceProfile
 from frontend.forms import DeviceForm, LicenseForm, VehicleForm
 from vehicles.models import VehicleType, Vehicle, Device, DriverVehicleAssignment
-from .models import DrivingSession
+from .models import DrivingSession, DrivingShift
 
 
 @override_settings(FACE_COSINE_THRESHOLD='0.75', FACE_COSINE_MARGIN=0.05,
@@ -44,6 +44,8 @@ class SessionAPITests(TestCase):
             api_key_hash=make_password('other'), api_key_digest=sha256(b'other').hexdigest())
         cls.assignment = DriverVehicleAssignment.objects.create(driver=cls.driver, vehicle=cls.vehicle,
             start_at=timezone.now() - timedelta(hours=1))
+        cls.shift = DrivingShift.objects.create(assignment=cls.assignment,
+            start_at=timezone.now()-timedelta(minutes=30), end_at=timezone.now()+timedelta(hours=4))
 
     def setUp(self):
         self.headers = {'HTTP_AUTHORIZATION': 'Bearer secret'}
@@ -53,6 +55,19 @@ class SessionAPITests(TestCase):
         Image.new('RGB', (640, 360)).save(output, 'JPEG')
         self.jpeg = output.getvalue()
         self.extract = self.enterContext(patch('driving.device_api.extract_single', return_value=self.vector))
+
+    def test_start_requires_scheduled_shift_and_returns_shift_id(self):
+        DrivingShift.objects.filter(pk=self.shift.pk).update(cancelled=True)
+        response = self.start().json()
+        self.assertEqual(response['code'], 'NO_SCHEDULED_SHIFT')
+        self.assertTrue(response['data']['verified'])
+        self.assertFalse(response['data']['session_started'])
+        self.assertFalse(DrivingSession.objects.exists())
+        DrivingShift.objects.filter(pk=self.shift.pk).update(cancelled=False)
+        response = self.start().json()
+        self.assertEqual(response['data']['shift_id'], self.shift.pk)
+        session = DrivingSession.objects.get(pk=response['data']['session_id'])
+        self.assertEqual(session.shift_id, self.shift.pk)
 
     def start(self, **extra):
         return self.client.post(self.start_url, {
@@ -116,6 +131,7 @@ class SessionAPITests(TestCase):
         DriverVehicleAssignment.objects.filter(pk=self.assignment.pk).update(start_at=timezone.now() - timedelta(hours=1))
         DriverVehicleAssignment.objects.create(driver=self.driver, vehicle=self.vehicle, start_at=timezone.now())
         self.assertEqual(self.start().json()['code'], 'ASSIGNMENT_AMBIGUOUS')
+        DrivingShift.objects.all().delete()
         DriverVehicleAssignment.objects.all().delete()
         self.assertEqual(self.start().json()['code'], 'NO_ACTIVE_ASSIGNMENT')
         self.assertFalse(DrivingSession.objects.exists())
@@ -162,6 +178,7 @@ class SessionAPITests(TestCase):
                 self.assertEqual(body['data']['reason_code'], reason)
                 self.assertEqual(body['data']['driver']['full_name'], 'Driver')
                 model.objects.filter(pk=pk).update(**{field: old})
+        DrivingShift.objects.all().delete()
         DriverVehicleAssignment.objects.all().delete()
         body = self.start().json()
         self.assertEqual(body['data']['reason_code'], 'NO_ACTIVE_ASSIGNMENT')

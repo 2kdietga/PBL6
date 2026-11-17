@@ -11,6 +11,7 @@
     {% status_badge driver.approval_status driver.get_approval_status_display %}
   </div>
   <nav class="driver-tabs" aria-label="Thông tin tài xế">
+    <a href="{% url 'frontend:shift-report' %}?driver={{ driver.pk }}">Chấp hành lịch lái ↗</a>
     <a href="?tab=overview&amp;period={{ overview.period }}" {% if driver_tab == 'overview' %}aria-current="page"{% endif %}>Tổng quan</a>
     <a href="?tab=sessions&amp;period={{ overview.period }}" {% if driver_tab == 'sessions' %}aria-current="page"{% endif %}>Phiên lái</a>
     <a href="?tab=violations&amp;period={{ overview.period }}" {% if driver_tab == 'violations' %}aria-current="page"{% endif %}>Vi phạm & kháng cáo</a>

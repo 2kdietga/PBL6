@@ -4,12 +4,13 @@
 
 ## Chuẩn bị
 
-1. Chạy `python manage.py migrate` để thêm `DrivingSession.source_device`.
+1. Chạy `python manage.py migrate` để thêm các trường thiết bị nguồn và lịch ca lái.
 2. Xe ACTIVE, gắn thiết bị không MAINTENANCE; cấp khóa bằng `python manage.py rotate_device_key <device_code>`.
 3. Tài xế hoạt động, hồ sơ và khuôn mặt APPROVED, GPLX ACTIVE còn hạn, ngày cấp hợp lệ.
 4. Xác nhận hệ hạng GPLX trong form GPLX. Xe tải cần khối lượng toàn bộ theo thiết kế; xe khách cần số hành khách và thông tin giường nằm. API dùng quy tắc hạng đã có trong `vehicles/licensing.py`.
-5. Đúng một phân công còn hiệu lực cho tài xế/xe. Xe chưa có phiên STARTED.
+5. Đúng một phân công còn hiệu lực cho tài xế/xe. Xe và tài xế chưa có phiên STARTED.
 6. Cấu hình HF/ngưỡng cosine như API nhận diện và đồng bộ đồng hồ Pi.
+7. Admin tạo ca tại `/shifts/`. Mở phiên phải nằm trong ca hoặc khoảng cho phép sớm của ca (mặc định 15 phút), đồng thời phân công vẫn phải có hiệu lực.
 
 Không tự duyệt hồ sơ cũ hay tự điền thông số xe. Thiếu dữ liệu thì API từ chối và trả thông báo cụ thể.
 
@@ -58,6 +59,7 @@ HTTP 201, envelope giữ ok/code/message/request_id/server_time/action/retry_aft
 ```json
 {
   "session_id": 120,
+  "shift_id": 10,
   "status": "STARTED",
   "vehicle_id": 5,
   "driver": {"id": 12, "full_name": "Nguyễn Văn A"},
@@ -74,10 +76,27 @@ Pi chỉ coi mở phiên thành công khi HTTP 201 và code=SESSION_STARTED. Kh�
 | 403 | NO_ACTIVE_ASSIGNMENT | Admin phân công đúng xe/thời gian |
 | 409 | ASSIGNMENT_AMBIGUOUS | Admin xử lý phân công trùng |
 | 409 | SESSION_ALREADY_ACTIVE | Đọc context |
+| 403 | NO_SCHEDULED_SHIFT | Ngoài ca, chưa có lịch hoặc ca đã hủy; admin kiểm tra lịch |
+| 409 | SHIFT_AMBIGUOUS | Có nhiều ca phù hợp; admin kiểm tra |
+| 409 | DRIVER_SESSION_ALREADY_ACTIVE | Tài xế còn phiên mở trên xe khác; cần kết thúc phiên đó |
 | 422 | STALE_FRAME | Chụp ảnh mới, kiểm tra đồng hồ |
 | 401 | DEVICE_UNAUTHORIZED | Kiểm tra/cấp lại khóa |
 
 Lỗi ảnh/HF/trạng thái thiết bị và xe giữ mã của API cũ. Sau HF, server kiểm tra lại khóa/thiết bị, hồ sơ và phân công trước khi tạo phiên.
+
+`shift_id` do server chọn, Pi không gửi lên. Ca đang diễn ra được ưu tiên hơn cửa sổ bắt đầu sớm của ca tiếp theo.
+Một ca có thể có nhiều phiên; lần bắt đầu đầu tiên dùng để xét đúng giờ. Trễ tối đa 5 phút mặc định, có thể cấu hình theo ca.
+Giờ server là căn cứ ghi nhận bắt đầu. Phiên tạo trước tính năng lịch giữ `shift_id=null`; không tự gán hoặc đánh giá lại lịch sử cũ.
+Loa có thể đọc `NO_SCHEDULED_SHIFT`: “Hiện không có ca lái phù hợp. Vui lòng kiểm tra lịch được giao.”
+
+## Lịch và đánh giá trên web
+
+- Admin tạo/sửa ca chưa bắt đầu; chặn trùng tài xế hoặc xe và ca ngoài phân công. Sửa lịch cần lý do, xóa xác nhận nhận lịch cũ và lưu lịch sử trước/sau.
+- Ca đã bắt đầu bị khóa giờ dự kiến để tránh sửa lịch làm mất dấu đi muộn. Ngoại lệ được ghi bằng giải trình và quyết định miễn đánh giá.
+- Tài xế xem lịch tuần, xác nhận nhận lịch, gửi/cập nhật giải trình trước khi chốt. Mọi thay đổi được lưu dấu vết.
+- Sau giờ kết thúc và khi không còn phiên mở, admin chốt đúng giờ/đi muộn/vắng theo dữ liệu hoặc miễn đánh giá có lý do. Ca chưa có phiên chỉ là nghi vắng trước khi admin chốt.
+- `/shifts/report/`: báo cáo theo tháng bắt đầu ca. Tỷ lệ đúng giờ chỉ tính ca đã chốt thuộc diện đánh giá, loại ca hủy/miễn; ca chờ xử lý được đếm riêng.
+- Ca không có phiên có thể hủy với lý do. Ca đã có phiên không được hủy; dùng miễn đánh giá nếu có ngoại lệ được xác nhận.
 
 ## Context và timeout
 

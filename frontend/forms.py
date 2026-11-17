@@ -219,6 +219,11 @@ class AssignmentForm(forms.ModelForm):
         if self.instance.pk and self.instance.driving_sessions.exists():
             if driver and vehicle and (old.driver_id != driver.pk or old.vehicle_id != vehicle.pk or old.start_at != start):
                 raise forms.ValidationError('Phân công đã có phiên lái: chỉ cập nhật thời gian kết thúc để giữ lịch sử.')
+        if self.instance.pk and self.instance.shifts.exists():
+            if driver and vehicle and (old.driver_id != driver.pk or old.vehicle_id != vehicle.pk or old.start_at != start):
+                raise forms.ValidationError('Phân công đã có ca lái: không thể đổi tài xế, xe hoặc ngày bắt đầu.')
+            if end and self.instance.shifts.filter(cancelled=False, end_at__gt=end).exists():
+                self.add_error('end_at', 'Còn ca lái ngoài thời gian kết thúc mới. Cần xử lý các ca này trước.')
         return values
 
 
