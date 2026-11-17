@@ -307,6 +307,7 @@ def license_page(request):
 
 @admin_required
 def driver_detail(request, pk):
+    from .driver_overview import driver_overview
     driver = get_object_or_404(DriverProfile.objects.select_related('user'), pk=pk)
     license = DriverLicense.objects.filter(driver=driver).first()
     face = FaceProfile.objects.filter(driver=driver).first()
@@ -314,6 +315,7 @@ def driver_detail(request, pk):
     notice = ('Hồ sơ chưa đầy đủ: ' + ', '.join(missing) + '.') if missing else (
         'Cần duyệt GPLX còn hạn và khuôn mặt trước khi duyệt toàn bộ hồ sơ.' if not driver.can_approve else '')
     return page(request, 'driver_detail.html', title=driver.full_name, driver=driver, license=license, face=face,
+                overview=driver_overview(driver, request.GET.get('period', 'all')),
                 profile_requirements_notice=notice,
                 driver_version=revision(driver), license_version=revision(license), face_version=revision(face))
 
