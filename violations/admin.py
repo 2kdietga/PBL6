@@ -43,9 +43,13 @@ class EvidenceAdmin(admin.ModelAdmin):
 
 
 @admin.register(Appeal)
-class AppealAdmin(admin.ModelAdmin):
-    list_display = ('id', 'violation_id', 'status', 'created_at', 'resolved_at', 'deleted_at')
+class AppealAdmin(ReadOnlyAdmin):
+    list_display = ('id', 'violation_id', 'status', 'created_at', 'resolved_at', 'deleted_at', 'review_link')
     list_filter = ('status',)
+
+    @admin.display(description='Xử lý kháng cáo')
+    def review_link(self, obj):
+        return format_html('<a href="{}">Mở kháng cáo</a>', reverse('frontend:violation-detail', args=[obj.violation_id]))
 
 
 @admin.register(ViolationReview)

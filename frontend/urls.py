@@ -24,6 +24,8 @@ urlpatterns = [
     path('violations/', violation_views.listing, name='violations'),
     path('violations/<int:pk>/', violation_views.detail, name='violation-detail'),
     path('violations/<int:pk>/review/', violation_views.review, name='violation-review'),
+    path('violations/<int:pk>/appeal/', violation_views.appeal_submit, name='appeal-submit'),
+    path('violations/<int:pk>/appeal/review/', violation_views.appeal_review, name='appeal-review'),
 ]
 urlpatterns += [path(f'{key}/', views.listing, {'key': key}, name=key) for key in views.ENTITIES]
-urlpatterns += [path('appeals/', views.deferred, {'title': 'Kháng cáo'}, name='appeals')]
+urlpatterns += [path('appeals/', violation_views.appeals, name='appeals')]

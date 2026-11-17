@@ -30,6 +30,40 @@
     {% empty %}<p class="empty">Chưa có bằng chứng cho vi phạm này.</p>{% endfor %}
   </div>
 </section>
+<section class="card">
+  <div class="card-header"><h2>Kháng cáo của tài xế</h2>{% if appeal %}{% status_badge appeal.status appeal.get_status_display %}{% endif %}</div>
+  <div class="card-body">
+    {% if appeal %}
+      <p>Gửi lúc {{ appeal.created_at|date:'d/m/Y H:i:s' }}</p>
+      <div>{{ appeal.content|linebreaksbr }}</div>
+      {% if appeal.deleted_at %}<p class="notice">Kháng cáo đã được lưu trữ.</p>
+      {% elif appeal.status == 'PENDING' %}<p class="notice">Kháng cáo đang chờ quản trị viên xem xét.</p>{% endif %}
+      {% if appeal.resolved_at %}
+        <h3>Phản hồi của quản trị viên</h3><div>{{ appeal.admin_response|linebreaksbr }}</div>
+        <p>Đã xử lý lúc {{ appeal.resolved_at|date:'d/m/Y H:i:s' }}</p>
+        {% if appeal.status == 'APPROVED' %}<p class="notice success">Kháng cáo được chấp nhận. Vi phạm đã được thu hồi.</p>{% endif %}
+      {% endif %}
+      {% if is_admin and can_review_appeal %}
+      <form method="post" action="{% url 'frontend:appeal-review' violation.pk %}">
+        {% csrf_token %}<input type="hidden" name="version" value="{{ version }}">
+        {% include 'includes/fields.html' with form=appeal_review_form %}
+        <div class="form-actions">
+          <button class="button danger" name="action" value="appeal_reject" data-confirm="Từ chối kháng cáo và giữ nguyên vi phạm?">Từ chối kháng cáo</button>
+          <button class="button primary" name="action" value="appeal_approve" data-confirm="Chấp nhận kháng cáo và thu hồi vi phạm?">Chấp nhận kháng cáo</button>
+        </div>
+      </form>
+      {% endif %}
+    {% elif can_appeal %}
+      <p>Nếu cho rằng vi phạm được xác nhận chưa chính xác, bạn có thể gửi lý do để quản trị viên xem xét lại.</p>
+      <form method="post" action="{% url 'frontend:appeal-submit' violation.pk %}">
+        {% csrf_token %}<input type="hidden" name="version" value="{{ version }}">
+        {% include 'includes/fields.html' with form=appeal_form %}
+        <div class="form-actions"><button class="button primary" data-confirm="Gửi kháng cáo này? Nội dung không thể chỉnh sửa sau khi gửi.">Gửi kháng cáo</button></div>
+      </form>
+    {% elif violation.status == 'PENDING' %}<p>Chỉ có thể gửi kháng cáo sau khi quản trị viên xác nhận vi phạm.</p>
+    {% else %}<p>Chưa có kháng cáo.</p>{% endif %}
+  </div>
+</section>
 {% if is_admin %}
 <section class="card">
   <div class="card-header"><h2>Xác nhận vi phạm</h2></div>
@@ -42,7 +76,7 @@
     {% elif can_reopen %}
     <p>Vi phạm đã được xử lý. Chọn xem xét lại để đưa về trạng thái chờ xác nhận.</p>
     <form method="post" action="{% url 'frontend:violation-review' violation.pk %}">{% csrf_token %}<input type="hidden" name="version" value="{{ version }}"><button class="button" name="action" value="reopen" data-confirm="Đưa vi phạm về trạng thái chờ xác nhận?">Xem xét lại</button></form>
-    {% else %}<p>Vi phạm đã có kháng cáo. Chức năng xử lý kháng cáo sẽ được bổ sung sau.</p>{% endif %}
+    {% else %}<p>Vi phạm đã có kháng cáo. Xem nội dung và kết quả tại mục Kháng cáo của tài xế.</p>{% endif %}
   </div>
 </section>
 <section class="card">
@@ -52,6 +86,7 @@
     <article><p><strong>{{ review.get_action_display }}</strong> · {{ review.reviewer_name }} · {{ review.created_at|date:'d/m/Y H:i:s' }}</p>
       <p>{{ review.after.type_name }} · {{ review.after.severity }}</p>
       {% if review.after.admin_note %}<p>{{ review.after.admin_note|linebreaksbr }}</p>{% endif %}
+      {% if review.after.admin_response %}<p>Phản hồi kháng cáo: {{ review.after.admin_response|linebreaksbr }}</p>{% endif %}
     </article>
     {% empty %}<p class="empty">Chưa có lịch sử xử lý được ghi nhận.</p>{% endfor %}
   </div>

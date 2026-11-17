@@ -140,11 +140,13 @@ class ViolationReview(models.Model):
         APPROVE = 'approve', 'Xác nhận'
         REJECT = 'reject', 'Từ chối'
         REOPEN = 'reopen', 'Xem xét lại'
+        APPEAL_APPROVE = 'appeal_approve', 'Chấp nhận kháng cáo'
+        APPEAL_REJECT = 'appeal_reject', 'Từ chối kháng cáo'
 
     violation = models.ForeignKey(Violation, on_delete=models.CASCADE, related_name='reviews')
     reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, editable=False)
     reviewer_name = models.CharField(max_length=150)
-    action = models.CharField(max_length=10, choices=Action.choices)
+    action = models.CharField(max_length=20, choices=Action.choices)
     before = models.JSONField()
     after = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)

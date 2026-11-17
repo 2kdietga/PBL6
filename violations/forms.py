@@ -18,3 +18,14 @@ class ViolationReviewForm(forms.ModelForm):
         model = Violation
         fields = ('violation_type', 'severity', 'admin_note')
         labels = dict(violation_type='Loại vi phạm', severity='Mức độ', admin_note='Ghi chú của quản trị viên')
+
+
+class AppealForm(forms.Form):
+    content = forms.CharField(label='Lý do kháng cáo', max_length=5000,
+                              widget=forms.Textarea(attrs={'rows': 5}),
+                              help_text='Nêu rõ lý do và thông tin để quản trị viên xem xét. Mỗi vi phạm chỉ được kháng cáo một lần.')
+
+
+class AppealReviewForm(forms.Form):
+    admin_response = forms.CharField(label='Phản hồi cho tài xế', max_length=5000,
+                                     widget=forms.Textarea(attrs={'rows': 4}))

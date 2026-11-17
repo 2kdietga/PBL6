@@ -38,8 +38,8 @@ def admin_required(view):
     return wrapped
 
 
-ADMIN_MENU = [('dashboard', 'Tổng quan'), ('drivers', 'Tài xế'), ('vehicles', 'Phương tiện'), ('assignments', 'Phân công'), ('sessions', 'Phiên lái'), ('violations', 'Vi phạm'), ('devices', 'Thiết bị'), ('catalogs', 'Loại xe'), ('violation-types', 'Loại vi phạm'), ('password-change', 'Đổi mật khẩu')]
-DRIVER_MENU = [('dashboard', 'Tổng quan'), ('profile', 'Hồ sơ cá nhân'), ('license', 'Giấy phép lái xe'), ('vehicles', 'Xe được giao'), ('sessions', 'Phiên lái của tôi'), ('violations', 'Vi phạm của tôi'), ('password-change', 'Đổi mật khẩu')]
+ADMIN_MENU = [('dashboard', 'Tổng quan'), ('drivers', 'Tài xế'), ('vehicles', 'Phương tiện'), ('assignments', 'Phân công'), ('sessions', 'Phiên lái'), ('violations', 'Vi phạm'), ('devices', 'Thiết bị'), ('catalogs', 'Loại xe'), ('violation-types', 'Loại vi phạm'), ('appeals', 'Kháng cáo'), ('password-change', 'Đổi mật khẩu')]
+DRIVER_MENU = [('dashboard', 'Tổng quan'), ('profile', 'Hồ sơ cá nhân'), ('license', 'Giấy phép lái xe'), ('vehicles', 'Xe được giao'), ('sessions', 'Phiên lái của tôi'), ('violations', 'Vi phạm của tôi'), ('appeals', 'Kháng cáo'), ('password-change', 'Đổi mật khẩu')]
 
 
 def page(request, template, **context):
@@ -47,7 +47,7 @@ def page(request, template, **context):
     current = request.resolver_match.url_name
     active = {'home': 'dashboard', 'driver-detail': 'drivers', 'driver-action': 'drivers',
               'violation-detail': 'violations', 'violation-review': 'violations', 'face': 'profile',
-              'device-key': 'devices'}.get(current, current)
+              'appeal-submit': 'violations', 'appeal-review': 'appeals', 'device-key': 'devices'}.get(current, current)
     if current in ('create', 'edit'):
         active = request.resolver_match.kwargs.get('key', current)
     context.update(is_admin=admin, navigation=ADMIN_MENU if admin else DRIVER_MENU, active_page=active)
