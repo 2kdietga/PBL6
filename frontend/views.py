@@ -316,6 +316,7 @@ def driver_detail(request, pk):
         'Cần duyệt GPLX còn hạn và khuôn mặt trước khi duyệt toàn bộ hồ sơ.' if not driver.can_approve else '')
     return page(request, 'driver_detail.html', title=driver.full_name, driver=driver, license=license, face=face,
                 overview=driver_overview(driver, request.GET.get('period', 'all')),
+                driver_tab=request.GET.get('tab') if request.GET.get('tab') in ('sessions', 'violations', 'profile') else 'overview',
                 profile_requirements_notice=notice,
                 driver_version=revision(driver), license_version=revision(license), face_version=revision(face))
 
@@ -339,11 +340,11 @@ def driver_action(request, pk):
                 require_revision(request.POST.get('version'), target)
             except ValidationError as exc:
                 messages.error(request, ' '.join(exc.messages))
-                return redirect('frontend:driver-detail', pk=pk)
+                return redirect(reverse('frontend:driver-detail', args=[pk]) + '?tab=profile')
         if action in ('approve', 'reject'):
             if action == 'approve' and not driver.can_approve:
                 messages.error(request, 'Chưa thể duyệt hồ sơ: cần đủ thông tin, GPLX còn hạn được duyệt và ảnh khuôn mặt được duyệt.')
-                return redirect('frontend:driver-detail', pk=pk)
+                return redirect(reverse('frontend:driver-detail', args=[pk]) + '?tab=profile')
             driver.approval_status = 'APPROVED' if action == 'approve' else 'REJECTED'
             driver.save(update_fields=['approval_status', 'updated_at'])
         elif action in ('enable', 'disable'):
@@ -354,31 +355,31 @@ def driver_action(request, pk):
             face = target
             if action == 'face-redo' and face.approval_status != 'APPROVED':
                 messages.error(request, 'Chỉ ảnh khuôn mặt đã duyệt mới có thể yêu cầu làm lại.')
-                return redirect('frontend:driver-detail', pk=pk)
+                return redirect(reverse('frontend:driver-detail', args=[pk]) + '?tab=profile')
             if action != 'face-redo' and face.approval_status != 'PENDING':
                 messages.error(request, 'Ảnh khuôn mặt này đã được xử lý. Chỉ ảnh đang chờ duyệt mới có thể duyệt hoặc từ chối.')
-                return redirect('frontend:driver-detail', pk=pk)
+                return redirect(reverse('frontend:driver-detail', args=[pk]) + '?tab=profile')
             if action == 'face-approve' and not face.embedding:
                 messages.error(request, 'Hồ sơ chưa có vector khuôn mặt.')
-                return redirect('frontend:driver-detail', pk=pk)
+                return redirect(reverse('frontend:driver-detail', args=[pk]) + '?tab=profile')
             face.approval_status = 'APPROVED' if action == 'face-approve' else 'REJECTED'
             face.save(update_fields=['approval_status', 'updated_at'])
         elif action in ('license-approve', 'license-reject', 'license-redo'):
             obj = target
             if action == 'license-redo' and obj.status not in ('ACTIVE', 'EXPIRED'):
                 messages.error(request, 'Chỉ GPLX đã duyệt hoặc hết hạn mới có thể yêu cầu làm lại.')
-                return redirect('frontend:driver-detail', pk=pk)
+                return redirect(reverse('frontend:driver-detail', args=[pk]) + '?tab=profile')
             if action != 'license-redo' and obj.status != 'PENDING':
                 messages.error(request, 'GPLX này đã được xử lý. Chỉ GPLX đang chờ duyệt mới có thể duyệt hoặc từ chối.')
-                return redirect('frontend:driver-detail', pk=pk)
+                return redirect(reverse('frontend:driver-detail', args=[pk]) + '?tab=profile')
             if action == 'license-approve' and obj.is_expired:
                 messages.error(request, 'Không thể duyệt GPLX đã hết hạn.')
-                return redirect('frontend:driver-detail', pk=pk)
+                return redirect(reverse('frontend:driver-detail', args=[pk]) + '?tab=profile')
             obj.status = 'ACTIVE' if action == 'license-approve' else 'REJECTED'
             obj.save(update_fields=['status', 'updated_at'])
         else: raise PermissionDenied
     messages.success(request, 'Đã cập nhật trạng thái.')
-    return redirect('frontend:driver-detail', pk=pk)
+    return redirect(reverse('frontend:driver-detail', args=[pk]) + '?tab=profile')
 
 
 @login_required

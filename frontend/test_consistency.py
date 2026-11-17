@@ -68,7 +68,7 @@ class ConsistencyTests(TestCase):
 
     def test_replacement_face_cannot_be_approved_from_old_page(self):
         self.client.force_login(self.admin)
-        response = self.client.get(reverse('frontend:driver-detail', args=[self.driver.pk]))
+        response = self.client.get((reverse('frontend:driver-detail', args=[self.driver.pk]) + '?tab=profile'))
         token = response.context['face_version']
         self.face.face_image_url = 'https://example.com/new.jpg'
         self.face.save()
@@ -83,7 +83,7 @@ class ConsistencyTests(TestCase):
         self.face.refresh_from_db()
         self.assertEqual(self.face.approval_status, 'APPROVED')
 
-        response = self.client.get(reverse('frontend:driver-detail', args=[self.driver.pk]))
+        response = self.client.get((reverse('frontend:driver-detail', args=[self.driver.pk]) + '?tab=profile'))
         self.assertContains(response, 'Đã duyệt')
         self.assertNotContains(response, 'Duyệt khuôn mặt')
         self.assertNotContains(response, 'Từ chối khuôn mặt')
@@ -94,7 +94,7 @@ class ConsistencyTests(TestCase):
 
     def test_license_review_actions_follow_pending_status(self):
         self.client.force_login(self.admin)
-        detail = reverse('frontend:driver-detail', args=[self.driver.pk])
+        detail = (reverse('frontend:driver-detail', args=[self.driver.pk]) + '?tab=profile')
         action_url = reverse('frontend:driver-action', args=[self.driver.pk])
         response = self.client.get(detail)
         self.assertContains(response, 'value="license-approve"')
@@ -133,7 +133,7 @@ class ConsistencyTests(TestCase):
     def test_redo_evidence_rejects_review_and_invalidates_profile(self):
         self.client.force_login(self.admin)
         url = reverse('frontend:driver-action', args=[self.driver.pk])
-        detail = reverse('frontend:driver-detail', args=[self.driver.pk])
+        detail = (reverse('frontend:driver-detail', args=[self.driver.pk]) + '?tab=profile')
         for target, action, field in ((self.license, 'license-redo', 'status'),
                                       (self.face, 'face-redo', 'approval_status')):
             with self.subTest(action=action):

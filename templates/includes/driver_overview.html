@@ -1,70 +1,29 @@
-{% load status_tags %}
-<section class="card">
-  <div class="card-header"><h2>Tổng quan hoạt động</h2></div>
-  <div class="card-body">
-    <form method="get" class="form-actions">
-      <label for="overview-period">Khoảng thống kê</label>
-      <select id="overview-period" name="period">
-        <option value="all" {% if overview.period == 'all' %}selected{% endif %}>Toàn bộ</option>
-        <option value="30" {% if overview.period == '30' %}selected{% endif %}>30 ngày gần nhất</option>
-        <option value="90" {% if overview.period == '90' %}selected{% endif %}>90 ngày gần nhất</option>
-      </select><button class="button" type="submit">Áp dụng</button>
-    </form>
-    <p class="muted">{% if overview.since %}Từ {{ overview.since|date:'d/m/Y H:i' }} đến{% else %}Toàn bộ lịch sử đến{% endif %} {{ overview.as_of|date:'d/m/Y H:i' }}. Phiên tính theo ngày bắt đầu; vi phạm tính theo ngày phát hiện và trạng thái hiện tại.</p>
-    <div class="detail-grid">
-      <div><strong>{{ overview.sessions.total }}</strong> phiên lái<br><small>{{ overview.sessions.ended }} đã kết thúc · {{ overview.sessions.started }} chưa kết thúc</small></div>
-      <div><strong>{{ overview.sessions.duration_label }}</strong><br><small>Tổng thời lượng các phiên đã kết thúc</small></div>
-      <div><strong>{{ overview.sessions.vehicles }}</strong> xe đã có phiên lái</div>
-      <div><strong>{{ overview.violations.APPROVED }}</strong> vi phạm đã xác nhận<br><small>{{ overview.high_severity }} lỗi mức độ cao</small></div>
+<h2 class="sr-only">Tổng quan hoạt động</h2>
+<div class="driver-metrics">
+  <div class="driver-metric"><span>Phiên lái</span><strong>{{ overview.sessions.total }}</strong><small>{{ overview.sessions.ended }} hoàn tất · {{ overview.sessions.started }} chưa kết thúc</small></div>
+  <div class="driver-metric"><span>Thời lượng phiên</span><strong class="duration">{{ overview.sessions.duration_label }}</strong><small>Chỉ tính phiên đã kết thúc</small></div>
+  <div class="driver-metric"><span>Xe đã lái</span><strong>{{ overview.sessions.vehicles }}</strong><small>Có phiên trong khoảng đã chọn</small></div>
+  <div class="driver-metric"><span>Vi phạm đã xác nhận</span><strong>{{ overview.violations.APPROVED }}</strong><small>{{ overview.high_severity }} mức độ cao · {{ overview.violations.PENDING }} chờ xác nhận</small></div>
+</div>
+<div class="driver-summary-grid">
+  <section class="card">
+    <div class="card-header"><h2>Xe đang được giao</h2><span class="tag">{{ overview.current_assignments|length }}</span></div>
+    <div class="card-body">
+      {% for assignment in overview.current_assignments %}
+      <div class="driver-assignment"><a href="{% url 'frontend:edit' 'assignments' assignment.pk %}"><strong>{{ assignment.vehicle.license_plate }}</strong></a><span>{{ assignment.vehicle.vehicle_type.name }}</span><small>Từ {{ assignment.start_at|date:'d/m/Y' }}{% if assignment.end_at %} đến {{ assignment.end_at|date:'d/m/Y' }}{% endif %}</small></div>
+      {% empty %}<p class="muted">Chưa có phân công đang hiệu lực.</p>{% endfor %}
+      <p class="muted">{{ overview.assignment_counts.upcoming }} phân công sắp tới</p>
     </div>
-    <p class="muted">Thời lượng phiên không đồng nghĩa thời gian xe di chuyển. Chưa có dữ liệu quãng đường để thống kê số kilômét.</p>
-    <h3>Nhận xét từ dữ liệu</h3>
-    <ul>{% for observation in overview.observations %}<li>{{ observation }}</li>{% endfor %}</ul>
-    <p class="muted">Đây là mô tả dữ liệu ghi nhận, chưa phải điểm xếp hạng tài xế.</p>
-  </div>
-</section>
-<section class="card">
-  <div class="card-header"><h2>Vi phạm và kháng cáo</h2></div>
-  <div class="card-body">
-    <div class="detail-grid">
-      <div>{{ overview.violations.PENDING }} chờ xác nhận</div>
-      <div>{{ overview.violations.APPROVED }} đã xác nhận</div>
-      <div>{{ overview.violations.REJECTED }} bị từ chối</div>
-      <div>{{ overview.violations.REVOKED }} đã thu hồi</div>
+  </section>
+  <section class="card">
+    <div class="card-header"><h2>Điểm cần chú ý</h2></div>
+    <div class="card-body">
+      <ul class="driver-observations">{% for observation in overview.observations %}<li>{{ observation }}</li>{% endfor %}</ul>
+      {% if overview.appeals.PENDING %}<a class="row-link" href="?tab=violations&amp;period={{ overview.period }}">{{ overview.appeals.PENDING }} kháng cáo chờ xử lý →</a>{% endif %}
     </div>
-    <p>Kháng cáo trên các vi phạm trong khoảng đã chọn: <strong>{{ overview.appeals.PENDING }}</strong> chờ xử lý · {{ overview.appeals.APPROVED }} được chấp nhận · {{ overview.appeals.REJECTED }} bị từ chối.</p>
-    <p class="muted">Vi phạm bị từ chối hoặc thu hồi không tính vào lỗi đã xác nhận. Vi phạm đang kháng cáo vẫn giữ trạng thái đã xác nhận cho đến khi có quyết định thu hồi.</p>
-    <h3>Loại vi phạm đã xác nhận thường gặp</h3>
-    <ul>{% for item in overview.top_types %}<li>{{ item.violation_type__name }}: <strong>{{ item.total }}</strong></li>{% empty %}<li>Chưa có vi phạm đã xác nhận trong khoảng này.</li>{% endfor %}</ul>
-  </div>
-</section>
-<section class="card">
-  <div class="card-header"><h2>Xe được phân công</h2></div>
-  <div class="card-body">
-    <p>Toàn bộ lịch sử: {{ overview.assignment_counts.total }} lượt phân công trên {{ overview.assignment_counts.vehicles }} xe · {{ overview.assignment_counts.upcoming }} lượt sắp bắt đầu.</p>
-    <h3>Phân công đang hiệu lực tại thời điểm hiện tại</h3>
-    {% for assignment in overview.current_assignments %}
-      <p><a href="{% url 'frontend:edit' 'assignments' assignment.pk %}"><strong>{{ assignment.vehicle.license_plate }}</strong></a> · {{ assignment.vehicle.vehicle_type.name }} · từ {{ assignment.start_at|date:'d/m/Y H:i' }}{% if assignment.end_at %} đến {{ assignment.end_at|date:'d/m/Y H:i' }}{% else %} · chưa đặt ngày kết thúc{% endif %}</p>
-    {% empty %}<p class="empty">Hiện chưa có phân công xe còn hiệu lực.</p>{% endfor %}
-    <p class="muted">Phân công còn hiệu lực không tự bảo đảm đủ điều kiện mở phiên; hệ thống vẫn kiểm tra hồ sơ, bằng lái và trạng thái xe.</p>
-    <details><summary>8 lượt phân công gần nhất — toàn bộ lịch sử</summary>
-      {% for assignment in overview.recent_assignments %}
-      <p><a href="{% url 'frontend:edit' 'assignments' assignment.pk %}">{{ assignment.vehicle.license_plate }}</a> · {{ assignment.start_at|date:'d/m/Y H:i' }} → {{ assignment.end_at|date:'d/m/Y H:i'|default:'Chưa đặt ngày kết thúc' }} · {% if assignment.start_at > overview.as_of %}Sắp bắt đầu{% elif assignment.end_at and assignment.end_at <= overview.as_of %}Đã kết thúc{% else %}Đang hiệu lực{% endif %}</p>
-      {% empty %}<p>Chưa có lịch sử phân công.</p>{% endfor %}
-    </details>
-  </div>
-</section>
-<section class="card">
-  <div class="card-header"><h2>8 phiên gần nhất trong khoảng đã chọn</h2></div>
-  <div class="table-scroll" tabindex="0" role="region" aria-label="Phiên lái gần nhất"><table>
-    <thead><tr><th>Phiên</th><th>Xe</th><th>Bắt đầu</th><th>Kết thúc</th><th>Trạng thái</th></tr></thead>
-    <tbody>{% for session in overview.recent_sessions %}<tr><td>#{{ session.pk }}</td><td>{{ session.vehicle.license_plate }}</td><td>{{ session.started_at|date:'d/m/Y H:i' }}</td><td>{{ session.ended_at|date:'d/m/Y H:i'|default:'Chưa kết thúc' }}</td><td>{% status_badge session.status session.get_status_display %}</td></tr>{% empty %}<tr><td colspan="5">Chưa có phiên lái trong khoảng này.</td></tr>{% endfor %}</tbody>
-  </table></div>
-</section>
-<section class="card">
-  <div class="card-header"><h2>8 sự kiện vi phạm gần nhất trong khoảng đã chọn</h2></div>
-  <div class="table-scroll" tabindex="0" role="region" aria-label="Vi phạm gần nhất"><table>
-    <thead><tr><th>Mã</th><th>Loại vi phạm</th><th>Xe</th><th>Phát hiện</th><th>Mức độ</th><th>Trạng thái</th></tr></thead>
-    <tbody>{% for violation in overview.recent_violations %}<tr><td><a href="{% url 'frontend:violation-detail' violation.pk %}">VP-{{ violation.pk }}</a></td><td>{{ violation.violation_type.name }}</td><td>{{ violation.session.vehicle.license_plate }}</td><td>{{ violation.detected_at|date:'d/m/Y H:i' }}</td><td>{{ violation.get_severity_display }}</td><td>{% status_badge violation.status violation.get_status_display %}</td></tr>{% empty %}<tr><td colspan="6">Chưa ghi nhận sự kiện trong khoảng này.</td></tr>{% endfor %}</tbody>
-  </table></div>
-</section>
+  </section>
+</div>
+<details class="driver-disclosure"><summary>Lịch sử phân công · {{ overview.assignment_counts.total }} lượt / {{ overview.assignment_counts.vehicles }} xe</summary>
+  <div class="driver-history">{% for assignment in overview.recent_assignments %}<div class="driver-history-row"><a href="{% url 'frontend:edit' 'assignments' assignment.pk %}">{{ assignment.vehicle.license_plate }}</a><span>{{ assignment.start_at|date:'d/m/Y' }} → {{ assignment.end_at|date:'d/m/Y'|default:'Chưa đặt ngày kết thúc' }}</span><small>{% if assignment.start_at > overview.as_of %}Sắp bắt đầu{% elif assignment.end_at and assignment.end_at <= overview.as_of %}Đã kết thúc{% else %}Đang hiệu lực{% endif %}</small></div>{% empty %}<p>Chưa có lịch sử phân công.</p>{% endfor %}<small class="muted">Hiển thị tối đa 8 lượt gần nhất, không giới hạn theo khoảng thống kê.</small></div>
+</details>
+<details class="driver-disclosure"><summary>Cách tính số liệu</summary><p>Phiên tính theo ngày bắt đầu, vi phạm theo ngày phát hiện và trạng thái hiện tại. Lỗi bị từ chối hoặc thu hồi không tính vào lỗi đã xác nhận. Thời lượng phiên không phải thời gian xe di chuyển. Xe đang giao tính tại hiện tại. Nhận xét mô tả dữ liệu, chưa phải điểm xếp hạng.</p></details>

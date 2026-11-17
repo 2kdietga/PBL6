@@ -1,0 +1,23 @@
+{% load status_tags %}
+<section class="card">
+  <div class="card-header"><h2>Vi phạm và kháng cáo</h2></div>
+  <div class="card-body">
+    <div class="detail-grid">
+      <div>{{ overview.violations.PENDING }} chờ xác nhận</div>
+      <div>{{ overview.violations.APPROVED }} đã xác nhận</div>
+      <div>{{ overview.violations.REJECTED }} bị từ chối</div>
+      <div>{{ overview.violations.REVOKED }} đã thu hồi</div>
+    </div>
+    <p>Kháng cáo trên các vi phạm trong khoảng đã chọn: <strong>{{ overview.appeals.PENDING }}</strong> chờ xử lý · {{ overview.appeals.APPROVED }} được chấp nhận · {{ overview.appeals.REJECTED }} bị từ chối.</p>
+    <p class="muted">Vi phạm bị từ chối hoặc thu hồi không tính vào lỗi đã xác nhận. Vi phạm đang kháng cáo vẫn giữ trạng thái đã xác nhận cho đến khi có quyết định thu hồi.</p>
+    <h3>Loại vi phạm đã xác nhận thường gặp</h3>
+    <ul>{% for item in overview.top_types %}<li>{{ item.violation_type__name }}: <strong>{{ item.total }}</strong></li>{% empty %}<li>Chưa có vi phạm đã xác nhận trong khoảng này.</li>{% endfor %}</ul>
+  </div>
+</section>
+<section class="card">
+  <div class="card-header"><h2>8 sự kiện vi phạm gần nhất trong khoảng đã chọn</h2></div>
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Vi phạm gần nhất"><table>
+    <thead><tr><th>Mã</th><th>Loại vi phạm</th><th>Xe</th><th>Phát hiện</th><th>Mức độ</th><th>Trạng thái</th></tr></thead>
+    <tbody>{% for violation in overview.recent_violations %}<tr><td><a href="{% url 'frontend:violation-detail' violation.pk %}">VP-{{ violation.pk }}</a></td><td>{{ violation.violation_type.name }}</td><td>{{ violation.session.vehicle.license_plate }}</td><td>{{ violation.detected_at|date:'d/m/Y H:i' }}</td><td>{{ violation.get_severity_display }}</td><td>{% status_badge violation.status violation.get_status_display %}</td></tr>{% empty %}<tr><td colspan="6">Chưa ghi nhận sự kiện trong khoảng này.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>

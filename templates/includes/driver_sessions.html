@@ -1,0 +1,8 @@
+{% load status_tags %}
+<section class="card">
+  <div class="card-header"><h2>8 phiên gần nhất trong khoảng đã chọn</h2></div>
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Phiên lái gần nhất"><table>
+    <thead><tr><th>Phiên</th><th>Xe</th><th>Bắt đầu</th><th>Kết thúc</th><th>Trạng thái</th></tr></thead>
+    <tbody>{% for session in overview.recent_sessions %}<tr><td>#{{ session.pk }}</td><td>{{ session.vehicle.license_plate }}</td><td>{{ session.started_at|date:'d/m/Y H:i' }}</td><td>{{ session.ended_at|date:'d/m/Y H:i'|default:'Chưa kết thúc' }}</td><td>{% status_badge session.status session.get_status_display %}</td></tr>{% empty %}<tr><td colspan="5">Chưa có phiên lái trong khoảng này.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
