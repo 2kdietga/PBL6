@@ -194,6 +194,17 @@ class SessionAPITests(TestCase):
             self.assertEqual(self.start().json()['code'], 'DRIVER_NOT_ELIGIBLE')
         self.assertFalse(DrivingSession.objects.exists())
 
+    def test_changed_extra_images_after_match_does_not_open_session(self):
+        from .face_verification import match_driver
+        def change(vector, threshold, margin):
+            result = match_driver(vector, threshold, margin)
+            FaceProfile.objects.filter(pk=self.face.pk).update(extra_images=[
+                {'url': 'https://example.com/side.png', 'public_id': 'side', 'embedding': self.vector}])
+            return result
+        with patch('driving.device_api.match_driver', side_effect=change):
+            self.assertEqual(self.start().json()['code'], 'DRIVER_NOT_ELIGIBLE')
+        self.assertFalse(DrivingSession.objects.exists())
+
     def test_ownership_and_legacy_sessions(self):
         pk = self.start().json()['data']['session_id']
         other_headers = {'HTTP_AUTHORIZATION': 'Bearer other'}

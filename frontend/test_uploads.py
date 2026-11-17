@@ -33,8 +33,10 @@ class UploadTests(TestCase):
         face = FaceProfile.objects.get(driver=self.driver)
         self.assertEqual(face.embedding, [0.2,0.4,0.6])
         self.assertEqual(len(extract.call_args.args[0]), 1)
-        self.assertEqual(extract.call_args.args[0][0].name, 'face.png')
+        self.assertEqual(extract.call_args_list[0].args[0][0].name, 'face.png')
         self.assertEqual(face.cloudinary_public_id, 'face-new')
+        self.assertEqual(len(face.extra_images), 1)
+        self.assertEqual(extract.call_count, 2)
         face.approval_status = 'APPROVED'
         face.save()
         self.driver.refresh_from_db()
@@ -86,11 +88,52 @@ class UploadTests(TestCase):
         self.assertTrue(response.context['form'].errors)
         extract.assert_not_called()
 
-    def test_profile_only_offers_one_avatar(self):
+    def test_profile_offers_extra_images(self):
         response = self.client.get(reverse('frontend:profile'))
         self.assertContains(response, 'name="avatar"')
-        self.assertNotContains(response, 'name="extra_images"')
-        self.assertNotContains(response, 'multiple')
+        self.assertContains(response, 'name="extra_images"')
+        self.assertContains(response, 'multiple')
+
+    @patch('accounts.profile_services.extract_embedding')
+    def test_extra_images_validate_every_file_and_limit(self, extract):
+        for extras in ([image_file(), SimpleUploadedFile('bad.png', b'bad', content_type='image/png')],
+                       [image_file() for _ in range(5)]):
+            response = self.client.post(reverse('frontend:profile'),
+                {**self.profile, 'avatar': image_file(), 'extra_images': extras})
+            self.assertIn('extra_images', response.context['form'].errors)
+        extract.assert_not_called()
+
+    @patch('accounts.profile_services.delete_images')
+    @patch('accounts.profile_services.upload_image', return_value=('https://example.com/face.png', 'new-main'))
+    @patch('accounts.profile_services.extract_embedding', side_effect=[[1.0] + [0.0] * 511, MediaError('Extra failed')])
+    def test_extra_embedding_failure_rolls_back_entire_upload(self, extract, upload, cleanup):
+        response = self.client.post(reverse('frontend:profile'),
+            {**self.profile, 'avatar': image_file(), 'extra_images': [image_file('side.png')]})
+        self.assertContains(response, 'Extra failed')
+        self.assertFalse(FaceProfile.objects.exists())
+        cleanup.assert_called_once_with(['new-main'])
+
+    @patch('accounts.profile_services.delete_images')
+    @patch('accounts.profile_services.upload_image', return_value=('https://example.com/side.png', 'side-new'))
+    @patch('accounts.profile_services.extract_embedding', return_value=[1.0] + [0.0] * 511)
+    def test_add_and_clear_extras_without_replacing_avatar(self, extract, upload, cleanup):
+        face = FaceProfile.objects.create(driver=self.driver, face_image_url='https://example.com/main.png',
+            cloudinary_public_id='main', embedding=[1.0] + [0.0] * 511, approval_status='APPROVED')
+        self.driver.refresh_from_db()
+        self.profile['version'] = revision(self.driver)
+        self.assertRedirects(self.client.post(reverse('frontend:profile'),
+            {**self.profile, 'extra_images': [image_file()]}), reverse('frontend:profile'))
+        face.refresh_from_db()
+        self.assertEqual(face.cloudinary_public_id, 'main')
+        self.assertEqual(face.extra_images[0]['public_id'], 'side-new')
+        self.assertEqual(face.approval_status, 'PENDING')
+        self.driver.refresh_from_db()
+        self.profile['version'] = revision(self.driver)
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(reverse('frontend:profile'), {**self.profile, 'clear_extra_images': 'on'})
+        face.refresh_from_db()
+        self.assertEqual(face.extra_images, [])
+        cleanup.assert_called_with(['side-new'])
 
     @patch('accounts.profile_services.delete_images')
     @patch('accounts.profile_services.upload_image', return_value=('https://res.cloudinary.com/test/face.png', 'new'))

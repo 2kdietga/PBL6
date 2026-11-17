@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils.html import format_html_join
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.auth.forms import UserChangeForm, AdminUserCreationForm
 from .models import User, DriverProfile, DriverLicense, FaceProfile
@@ -52,5 +53,10 @@ class FaceProfileAdmin(admin.ModelAdmin):
     list_filter = ('approval_status',)
     search_fields = ('driver__full_name',)
     autocomplete_fields = ('driver',)
-    readonly_fields = ('created_at', 'updated_at')
+    readonly_fields = ('extra_image_previews', 'created_at', 'updated_at')
     list_select_related = ('driver',)
+
+    @admin.display(description='Ảnh khuôn mặt bổ sung')
+    def extra_image_previews(self, obj):
+        return format_html_join('', '<img src="{}" alt="Ảnh bổ sung" width="160" referrerpolicy="no-referrer">',
+                                ((item['url'],) for item in obj.extra_images))

@@ -164,6 +164,7 @@ class FaceProfile(models.Model):
         default="",
     )
     embedding = models.JSONField()
+    extra_images = models.JSONField(default=list, blank=True, editable=False)
 
     approval_status = models.CharField(
         max_length=10,

@@ -64,7 +64,8 @@ def start_session(original_device, matched_driver):
         deny_driver('LICENSE_ISSUE_DATE_INVALID', 'Ngày cấp GPLX nằm trong tương lai.')
     if not face or face.approval_status != 'APPROVED':
         deny_driver('FACE_PROFILE_NOT_APPROVED', 'Hồ sơ khuôn mặt chưa được duyệt.')
-    if face.embedding != matched_driver.face_profile.embedding:
+    if (face.embedding != matched_driver.face_profile.embedding
+            or face.extra_images != matched_driver.face_profile.extra_images):
         deny_driver('FACE_PROFILE_CHANGED', 'Dữ liệu khuôn mặt đã thay đổi. Cần nhận diện lại.')
     if not driver.can_approve:
         deny_driver('DRIVER_PROFILE_INCOMPLETE', 'Hồ sơ tài xế còn thiếu thông tin bắt buộc.')

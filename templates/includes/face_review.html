@@ -9,7 +9,7 @@
   </div>
   <div class="card-body">
     {% if face %}
-      <img class="upload-preview" src="{{ face.face_image_url }}" alt="Ảnh tài xế" referrerpolicy="no-referrer">
+      <img class="upload-preview" src="{{ face.face_image_url }}" alt="Ảnh tài xế" referrerpolicy="no-referrer">{% for sample in face.extra_images %}<img class="upload-preview face-preview" src="{{ sample.url }}" alt="Ảnh khuôn mặt bổ sung {{ forloop.counter }}" referrerpolicy="no-referrer">{% endfor %}
       <p>Vector nhận diện: {{ face.embedding|length }} chiều</p>
       <details><summary>Xem vector embedding</summary><pre class="embedding-vector">{{ face.embedding }}</pre></details>
       {% if face.approval_status == 'PENDING' %}

@@ -23,6 +23,22 @@ class UploadImageField(forms.ImageField):
         return image
 
 
+class MultipleImageInput(forms.FileInput):
+    allow_multiple_selected = True
+
+
+class MultipleImageField(UploadImageField):
+    def __init__(self, *args, **kwargs):
+        kwargs['widget'] = MultipleImageInput(attrs={'accept': 'image/jpeg,image/png,image/webp'})
+        super().__init__(*args, **kwargs)
+
+    def clean(self, data, initial=None):
+        images = data if isinstance(data, (list, tuple)) else ([data] if data else [])
+        if len(images) > 4:
+            raise forms.ValidationError('Chọn tối đa 4 ảnh bổ sung.')
+        return [super(MultipleImageField, self).clean(image, initial) for image in images]
+
+
 class RegisterForm(UserCreationForm):
     email = forms.EmailField(label='Email', required=True)
 
@@ -60,6 +76,17 @@ class VersionedModelForm(forms.ModelForm):
 
 class ProfileForm(VersionedModelForm):
     avatar = UploadImageField(label='Ảnh đại diện / khuôn mặt', required=False)
+
+    extra_images = MultipleImageField(label='Ảnh khuôn mặt bổ sung', required=False, help_text='Tối đa 4 ảnh, mỗi ảnh 5 MB. Chọn ảnh mới sẽ thay toàn bộ ảnh bổ sung cũ. Không chọn sẽ giữ nguyên. Mỗi ảnh chỉ có khuôn mặt của bạn.')
+    clear_extra_images = forms.BooleanField(label='Xóa các ảnh bổ sung hiện tại', required=False)
+
+    def clean(self):
+        values = super().clean()
+        if values.get('extra_images') and not values.get('avatar') and not (self.instance.pk and hasattr(self.instance, 'face_profile')):
+            self.add_error('avatar', 'Cần chọn ảnh đại diện trước khi thêm ảnh bổ sung.')
+        if values.get('extra_images') and values.get('clear_extra_images'):
+            self.add_error('clear_extra_images', 'Không thể vừa xóa vừa thêm ảnh bổ sung.')
+        return values
 
     class Meta:
         model = DriverProfile

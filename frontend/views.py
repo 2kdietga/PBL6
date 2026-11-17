@@ -279,11 +279,11 @@ def profile(request):
     if request.method == 'POST' and form.is_valid():
         try:
             save_profile(form, request.user)
-            messages.success(request, 'Đã lưu hồ sơ.' + (' Đã gửi ảnh khuôn mặt chờ duyệt.' if form.cleaned_data.get('avatar') else ''))
+            messages.success(request, 'Đã lưu hồ sơ.' + (' Đã gửi ảnh khuôn mặt chờ duyệt.' if (form.cleaned_data.get('avatar') or form.cleaned_data.get('extra_images') or form.cleaned_data.get('clear_extra_images')) else ''))
             return redirect('frontend:profile')
         except (MediaError, ValidationError) as exc:
             form.add_error(None, exc if isinstance(exc, ValidationError) else str(exc))
-    return page(request, 'form.html', title='Hồ sơ cá nhân', form=form, face=face, status_code=obj.approval_status if obj else '', status=obj.get_approval_status_display() if obj else 'Chưa có hồ sơ', note='Cập nhật thông tin và chọn một ảnh rõ mặt, tối đa 5 MB. Ảnh này được dùng làm ảnh đại diện và tạo dữ liệu nhận diện khuôn mặt. Ảnh mới cần được quản trị viên duyệt lại.')
+    return page(request, 'form.html', title='Hồ sơ cá nhân', form=form, face=face, status_code=obj.approval_status if obj else '', status=obj.get_approval_status_display() if obj else 'Chưa có hồ sơ', note='Chọn một ảnh đại diện và tối đa 4 ảnh khuôn mặt bổ sung, mỗi ảnh tối đa 5 MB. Bộ ảnh mới cần được quản trị viên duyệt lại.')
 
 
 @login_required

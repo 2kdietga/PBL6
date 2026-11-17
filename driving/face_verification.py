@@ -313,15 +313,14 @@ def match_driver(vector, threshold, margin):
 
         try:
 
-            score = cosine_similarity(
-                vector,
-                face_profile.embedding,
-            )
+            vectors = [face_profile.embedding] + [item['embedding'] for item in face_profile.extra_images]
+            score = max(cosine_similarity(vector, sample) for sample in vectors)
 
         except (
             ValueError,
             TypeError,
             OverflowError,
+            KeyError,
         ) as exc:
 
             invalid_profiles = True

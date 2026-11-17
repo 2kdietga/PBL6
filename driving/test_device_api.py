@@ -288,6 +288,17 @@ class DeviceAPITests(TestCase):
         self.create_driver('broken-profile', [1, 2])
         self.assertEqual(self.post().json()['code'], 'DRIVER_VERIFIED')
 
+    def test_matches_supplementary_photo(self):
+        FaceProfile.objects.filter(driver=self.driver).update(
+            embedding=[0.0, 1.0] + [0.0] * 510,
+            extra_images=[{'url': 'https://example.com/side.png', 'public_id': 'side', 'embedding': self.vector}])
+        self.assertEqual(self.post().json()['code'], 'DRIVER_VERIFIED')
+
+    def test_multiple_matching_photos_of_same_driver_are_not_ambiguous(self):
+        FaceProfile.objects.filter(driver=self.driver).update(extra_images=[
+            {'url': 'https://example.com/side.png', 'public_id': 'side', 'embedding': self.vector}])
+        self.assertEqual(self.post().json()['code'], 'DRIVER_VERIFIED')
+
     def test_invalid_profile_and_unconfigured_threshold(self):
         FaceProfile.objects.filter(driver=self.driver).update(embedding=[1, 2])
         self.assertEqual(self.post().json()['code'], 'PROFILE_EMBEDDING_INVALID')
