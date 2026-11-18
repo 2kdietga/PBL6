@@ -53,6 +53,29 @@ class ShiftTests(TestCase):
         with self.assertRaises(ValidationError):
             shift_action(shift.pk, {'version': 'stale', 'action': 'cancel', 'response': 'test'}, self.admin)
 
+    def test_assignment_choices_hide_expired_but_keep_future_and_historical_edit(self):
+        expired = DriverVehicleAssignment.objects.create(driver=self.driver, vehicle=self.vehicle,
+            start_at=self.now-timedelta(days=90), end_at=self.now-timedelta(days=60))
+        boundary = DriverVehicleAssignment.objects.create(driver=self.driver, vehicle=self.vehicle,
+            start_at=self.now-timedelta(days=1), end_at=self.now)
+        future = DriverVehicleAssignment.objects.create(driver=self.driver, vehicle=self.vehicle,
+            start_at=self.now+timedelta(days=40))
+        with patch('driving.shift_forms.timezone.now', return_value=self.now):
+            form = ShiftForm()
+        ids = set(form.fields['assignment'].queryset.values_list('pk', flat=True))
+        self.assertEqual(ids, {self.assignment.pk, future.pk})
+        label = form.fields['assignment'].label_from_instance(future)
+        self.assertIn(self.vehicle.license_plate, label)
+        self.assertIn(timezone.localtime(future.start_at).strftime('%d/%m/%Y %H:%M'), label)
+        self.assertIn('Không thời hạn', label)
+        invalid = ShiftForm(self.payload(assignment=expired.pk))
+        self.assertFalse(invalid.is_valid())
+        self.assertIn('assignment', invalid.errors)
+        historical = self.create(assignment=expired, start_at=expired.start_at, end_at=expired.end_at)
+        edit_form = ShiftForm(instance=historical)
+        self.assertEqual(list(edit_form.fields['assignment'].queryset), [expired])
+        self.assertTrue(edit_form.fields['assignment'].disabled)
+
     def test_overlap_driver_and_vehicle_and_assignment_boundaries(self):
         self.create()
         driver_overlap = DriverVehicleAssignment.objects.create(driver=self.driver, vehicle=self.vehicle2, start_at=self.now)
