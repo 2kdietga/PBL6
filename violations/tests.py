@@ -49,6 +49,43 @@ class ViolationTests(TestCase):
         self.assertContains(response, 'Xác nhận vi phạm')
         self.assertNotContains(response, '/static/app.js')
 
+    def test_django_admin_records_are_read_only_even_for_superuser(self):
+        self.admin.is_staff = self.admin.is_superuser = True
+        self.admin.save()
+        self.client.force_login(self.admin)
+        appeal = Appeal.objects.create(violation=self.violation, content='Please review')
+        audit = ViolationReview.objects.create(violation=self.violation, reviewer=self.admin,
+            reviewer_name=self.admin.username, action='approve', before={}, after={})
+        for model_name, obj in (('violation', self.violation), ('evidence', self.evidence),
+                                ('appeal', appeal), ('violationreview', audit)):
+            with self.subTest(model=model_name):
+                base = f'admin:violations_{model_name}_'
+                listing = self.client.get(reverse(base+'changelist'))
+                self.assertEqual(listing.status_code, 200)
+                self.assertNotContains(listing, 'name="action"')
+                detail = self.client.get(reverse(base+'change', args=[obj.pk]))
+                self.assertEqual(detail.status_code, 200)
+                self.assertNotContains(detail, 'name="_save"')
+                if model_name != 'violationreview':
+                    self.assertContains(detail, self.url('violation-detail', self.violation.pk))
+                self.assertEqual(self.client.post(reverse(base+'change', args=[obj.pk]),
+                    {'status':'REJECTED', 'url':'https://example.com/changed.jpg', '_save':'Save'}).status_code, 403)
+                self.assertEqual(self.client.post(reverse(base+'delete', args=[obj.pk]), {'post':'yes'}).status_code, 403)
+                self.assertEqual(self.client.post(reverse(base+'add'), {}).status_code, 403)
+        self.violation.refresh_from_db()
+        self.evidence.refresh_from_db()
+        self.assertEqual(self.violation.status, 'PENDING')
+        self.assertEqual(self.evidence.url, 'https://example.com/evidence.jpg')
+
+    def test_admin_link_review_still_uses_validated_web_flow(self):
+        self.admin.is_staff = self.admin.is_superuser = True
+        self.admin.save()
+        self.client.force_login(self.admin)
+        self.assertRedirects(self.review(), self.url('violation-detail', self.violation.pk))
+        self.violation.refresh_from_db()
+        self.assertEqual(self.violation.status, 'APPROVED')
+        self.assertEqual(self.violation.reviews.count(), 1)
+
     def test_driver_visibility_is_enforced_on_list_and_detail(self):
         self.client.force_login(self.other)
         self.assertNotContains(self.client.get(self.url('violations')), '43C-11111')

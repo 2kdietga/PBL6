@@ -14,6 +14,7 @@ class ViolationTypeAdmin(admin.ModelAdmin):
 
 
 class ReadOnlyAdmin(admin.ModelAdmin):
+    actions = None
     def has_add_permission(self, request):
         return False
 
@@ -25,11 +26,12 @@ class ReadOnlyAdmin(admin.ModelAdmin):
 
 
 @admin.register(Violation)
-class ViolationAdmin(admin.ModelAdmin):
+class ViolationAdmin(ReadOnlyAdmin):
     list_display = ('id', 'session', 'violation_type', 'severity', 'detected_at', 'status', 'review_link')
     list_filter = ('status', 'severity', 'violation_type')
     search_fields = ('session__assignment__driver__full_name', 'session__assignment__vehicle__license_plate')
     list_select_related = ('violation_type', 'session__assignment__driver', 'session__assignment__vehicle')
+    readonly_fields = ('review_link',)
 
     @admin.display(description='Xem / xác nhận')
     def review_link(self, obj):
@@ -37,15 +39,21 @@ class ViolationAdmin(admin.ModelAdmin):
 
 
 @admin.register(Evidence)
-class EvidenceAdmin(admin.ModelAdmin):
-    list_display = ('id', 'violation_id', 'type', 'captured_at')
+class EvidenceAdmin(ReadOnlyAdmin):
+    list_display = ('id', 'violation_id', 'type', 'captured_at', 'review_link')
     list_filter = ('type',)
+    readonly_fields = ('review_link',)
+
+    @admin.display(description='Xem vi phạm')
+    def review_link(self, obj):
+        return format_html('<a href="{}">Mở trang vi phạm</a>', reverse('frontend:violation-detail', args=[obj.violation_id]))
 
 
 @admin.register(Appeal)
 class AppealAdmin(ReadOnlyAdmin):
     list_display = ('id', 'violation_id', 'status', 'created_at', 'resolved_at', 'deleted_at', 'review_link')
     list_filter = ('status',)
+    readonly_fields = ('review_link',)
 
     @admin.display(description='Xử lý kháng cáo')
     def review_link(self, obj):
