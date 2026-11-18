@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="auth-intro"><p class="eyebrow">SAVELIFE</p><h1>{% if register %}Bắt đầu cùng SaveLife{% else %}Chào mừng trở lại{% endif %}</h1><p class="subtitle">{% if register %}Tạo tài khoản để quản lý hồ sơ và theo dõi chuyến đi của bạn.{% else %}Đăng nhập để tiếp tục công việc của bạn.{% endif %}</p></div>
+<div class="auth-intro"><p class="eyebrow">SAVELIFE</p><h1>{% if register %}Bắt đầu cùng SaveLife{% else %}Chào mừng trở lại{% endif %}</h1></div>
 <section class="card auth"><div class="card-body"><h2>{{ title }}</h2><form method="post">{% csrf_token %}{% include 'includes/fields.html' %}{% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}<button class="button primary auth-submit">{{ title }} <span aria-hidden="true">→</span></button></form><div class="auth-links">{% if register %}<span>Đã có tài khoản?</span><a href="{% url 'frontend:login' %}">Đăng nhập</a>{% else %}<span>Bạn là tài xế mới?</span><a href="{% url 'frontend:register' %}">Tạo tài khoản</a>{% endif %}</div></div></section>
 {% endblock %}

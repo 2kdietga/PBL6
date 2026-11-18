@@ -8,6 +8,7 @@
   <title>{{ title }} · SaveLife</title>
   <link rel="stylesheet" href="{% static 'app.css' %}">
   <link rel="stylesheet" href="{% static 'css/server.css' %}">
+  <link rel="stylesheet" href="{% static 'css/ui.css' %}">
   <script src="{% static 'server.js' %}" defer></script>
 </head>
 <body{% if not user.is_authenticated %} class="guest-layout"{% endif %}>

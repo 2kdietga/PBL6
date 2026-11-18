@@ -2,6 +2,7 @@
 {% load status_tags %}
 {% block content %}
 <div class="page-heading"><h1>{{ title }}</h1><a class="button" href="{% url 'frontend:violations' %}">← Danh sách vi phạm</a></div>
+<div class="record-grid{% if not is_admin and not appeal and not can_appeal %} single-column{% endif %}"><div>
 <section class="card">
   <div class="card-header"><h2>Thông tin vi phạm</h2>{% status_badge violation.status violation.get_status_display %}</div>
   <div class="card-body">
@@ -30,7 +31,8 @@
     {% empty %}<p class="empty">Chưa có bằng chứng cho vi phạm này.</p>{% endfor %}
   </div>
 </section>
-<section class="card">
+</div><div>
+{% if appeal or can_appeal %}<section class="card">
   <div class="card-header"><h2>Kháng cáo của tài xế</h2>{% if appeal %}{% status_badge appeal.status appeal.get_status_display %}{% endif %}</div>
   <div class="card-body">
     {% if appeal %}
@@ -54,7 +56,7 @@
       </form>
       {% endif %}
     {% elif can_appeal %}
-      <p>Nếu cho rằng vi phạm được xác nhận chưa chính xác, bạn có thể gửi lý do để quản trị viên xem xét lại.</p>
+      <p class="muted">Nêu lý do để quản trị viên xem xét lại.</p>
       <form method="post" action="{% url 'frontend:appeal-submit' violation.pk %}">
         {% csrf_token %}<input type="hidden" name="version" value="{{ version }}">
         {% include 'includes/fields.html' with form=appeal_form %}
@@ -63,7 +65,7 @@
     {% elif violation.status == 'PENDING' %}<p>Chỉ có thể gửi kháng cáo sau khi quản trị viên xác nhận vi phạm.</p>
     {% else %}<p>Chưa có kháng cáo.</p>{% endif %}
   </div>
-</section>
+</section>{% endif %}
 {% if is_admin %}
 <section class="card">
   <div class="card-header"><h2>Xác nhận vi phạm</h2></div>
@@ -74,13 +76,15 @@
       <div class="form-actions"><button class="button danger" name="action" value="reject" data-confirm="Từ chối vi phạm này?">Từ chối</button><button class="button primary" name="action" value="approve" data-confirm="Xác nhận vi phạm này?">Xác nhận vi phạm</button></div>
     </form>
     {% elif can_reopen %}
-    <p>Vi phạm đã được xử lý. Chọn xem xét lại để đưa về trạng thái chờ xác nhận.</p>
+    <p class="muted">Vi phạm đã được xử lý.</p>
     <form method="post" action="{% url 'frontend:violation-review' violation.pk %}">{% csrf_token %}<input type="hidden" name="version" value="{{ version }}"><button class="button" name="action" value="reopen" data-confirm="Đưa vi phạm về trạng thái chờ xác nhận?">Xem xét lại</button></form>
-    {% else %}<p>Vi phạm đã có kháng cáo. Xem nội dung và kết quả tại mục Kháng cáo của tài xế.</p>{% endif %}
+    {% else %}<p class="muted">Xem kết quả tại mục Kháng cáo.</p>{% endif %}
   </div>
 </section>
-<section class="card">
-  <div class="card-header"><h2>Lịch sử xử lý</h2></div>
+{% endif %}
+</div></div>
+{% if is_admin %}<details class="card disclosure-card">
+  <summary>Lịch sử xử lý</summary>
   <div class="card-body">
     {% for review in reviews %}
     <article><p><strong>{{ review.get_action_display }}</strong> · {{ review.reviewer_name }} · {{ review.created_at|date:'d/m/Y H:i:s' }}</p>
@@ -90,6 +94,6 @@
     </article>
     {% empty %}<p class="empty">Chưa có lịch sử xử lý được ghi nhận.</p>{% endfor %}
   </div>
-</section>
+</details>
 {% endif %}
 {% endblock %}
