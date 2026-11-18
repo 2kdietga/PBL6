@@ -36,6 +36,7 @@ class DrivingSession(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        indexes = [models.Index(fields=['assignment', '-started_at'], name='session_assignment_start_idx')]
         constraints = [
             models.CheckConstraint(
                 condition=(models.Q(status='STARTED', ended_at__isnull=True)
@@ -107,6 +108,7 @@ class DrivingShift(models.Model):
 
     class Meta:
         ordering = ['start_at', 'pk']
+        indexes = [models.Index(fields=['start_at'], name='shift_start_idx')]
         constraints = [models.CheckConstraint(condition=models.Q(end_at__gt=models.F('start_at')), name='shift_end_after_start')]
 
     def clean(self):

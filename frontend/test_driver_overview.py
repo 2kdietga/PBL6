@@ -94,3 +94,11 @@ class DriverOverviewTests(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertContains(response, '<table>')
             self.assertNotContains(response, 'Hồ sơ tài xế')
+
+    def test_profile_tab_does_not_calculate_activity_statistics(self):
+        from unittest.mock import patch
+        self.client.force_login(self.admin)
+        with patch('frontend.driver_overview.driver_overview') as overview:
+            response = self.client.get(reverse('frontend:driver-detail', args=[self.driver.pk]), {'tab':'profile'})
+        self.assertEqual(response.status_code, 200)
+        overview.assert_not_called()

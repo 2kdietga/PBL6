@@ -1,9 +1,10 @@
 """Scheduling and attendance. All mutations use the same driver/vehicle/assignment lock order."""
 import math
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.db.models import Count, Min
 from django.utils import timezone
 
 from accounts.concurrency import require_revision
@@ -164,25 +165,35 @@ def select_shift(assignment, now):
 
 
 def monthly_summary(driver, month):
-    rows = DrivingShift.objects.filter(assignment__driver=driver, cancelled=False,
-        start_at__year=month.year, start_at__month=month.month).prefetch_related('sessions')
-    counts = dict(total=0, due=0, performed=0, pending=0, ON_TIME=0, LATE=0, ABSENT=0, EXCUSED=0, late_minutes=0)
+    return monthly_summaries([driver.pk], month)[driver.pk]
+
+
+def monthly_summaries(driver_ids, month):
+    start = timezone.make_aware(datetime.combine(month.replace(day=1), time.min))
+    next_month = start.replace(year=start.year+1, month=1) if start.month == 12 else start.replace(month=start.month+1)
+    result = {pk: dict(total=0, due=0, performed=0, pending=0, ON_TIME=0, LATE=0, ABSENT=0, EXCUSED=0, late_minutes=0)
+              for pk in driver_ids}
+    rows = DrivingShift.objects.filter(assignment__driver_id__in=driver_ids, cancelled=False,
+        start_at__gte=start, start_at__lt=next_month).order_by().values(
+            'pk', 'assignment__driver_id', 'start_at', 'end_at', 'decision').annotate(
+                first_start=Min('sessions__started_at'), session_count=Count('sessions'))
     now = timezone.now()
     for shift in rows:
+        counts = result[shift['assignment__driver_id']]
         counts['total'] += 1
-        if shift.end_at > now:
+        if shift['end_at'] > now:
             continue
         counts['due'] += 1
-        actual = attendance(shift, now)
-        if actual['count']:
+        if shift['session_count']:
             counts['performed'] += 1
-        if shift.decision:
-            counts[shift.decision] += 1
-            if shift.decision == 'LATE':
-                counts['late_minutes'] += actual['late_minutes']
+        if shift['decision']:
+            counts[shift['decision']] += 1
+            if shift['decision'] == 'LATE' and shift['first_start']:
+                counts['late_minutes'] += max(0, math.ceil((shift['first_start']-shift['start_at']).total_seconds()/60))
         else:
             counts['pending'] += 1
-    assessed = counts['ON_TIME'] + counts['LATE'] + counts['ABSENT']
-    counts['assessed'] = assessed
-    counts['rate'] = round(counts['ON_TIME'] * 100 / assessed, 1) if assessed else None
-    return counts
+    for counts in result.values():
+        assessed = counts['ON_TIME'] + counts['LATE'] + counts['ABSENT']
+        counts['assessed'] = assessed
+        counts['rate'] = round(counts['ON_TIME'] * 100 / assessed, 1) if assessed else None
+    return result

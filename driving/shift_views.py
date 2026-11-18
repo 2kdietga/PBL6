@@ -13,7 +13,7 @@ from vehicles.models import Vehicle
 from frontend.views import admin_required, is_admin, page
 from .models import DrivingShift
 from .shift_forms import ShiftForm
-from .shift_services import attendance, monthly_summary, save_shift, shift_action
+from .shift_services import attendance, monthly_summaries, save_shift, shift_action
 
 
 def visible(user):
@@ -35,9 +35,9 @@ def calendar(request):
     end = start + timedelta(days=7)
     rows = visible(request.user).filter(start_at__lt=end, end_at__gt=start)
     driver_id, vehicle_id = request.GET.get('driver', ''), request.GET.get('vehicle', '')
-    if is_admin(request.user) and driver_id.isdecimal():
+    if is_admin(request.user) and driver_id.isascii() and driver_id.isdecimal() and len(driver_id) <= 18:
         rows = rows.filter(assignment__driver_id=driver_id)
-    if vehicle_id.isdecimal():
+    if vehicle_id.isascii() and vehicle_id.isdecimal() and len(vehicle_id) <= 18:
         rows = rows.filter(assignment__vehicle_id=vehicle_id)
     shifts = [(shift, attendance(shift)) for shift in rows]
     days = []
@@ -96,15 +96,19 @@ def action(request, pk):
 def report(request):
     try:
         month = datetime.strptime(request.GET.get('month', ''), '%Y-%m').date()
+        if not 2000 <= month.year <= 2099:
+            raise ValueError
     except (ValueError, TypeError):
         month = timezone.localdate().replace(day=1)
     rows = DriverProfile.objects.order_by('full_name')
     if not is_admin(request.user):
         rows = rows.filter(user=request.user)
     driver_id = request.GET.get('driver', '')
-    if driver_id.isdecimal():
+    if driver_id.isascii() and driver_id.isdecimal() and len(driver_id) <= 18:
         rows = rows.filter(pk=driver_id)
     from django.core.paginator import Paginator
     pagination = Paginator(rows, 20).get_page(request.GET.get('page'))
+    drivers = list(pagination)
+    summaries = monthly_summaries([driver.pk for driver in drivers], month)
     return page(request, 'shift_report.html', title='Chấp hành lịch lái', month=month, selected_driver=driver_id,
-                pagination=pagination, reports=[{'driver': d, 'stats': monthly_summary(d, month)} for d in pagination])
+                pagination=pagination, reports=[{'driver': d, 'stats': summaries[d.pk]} for d in drivers])

@@ -11,7 +11,7 @@ from accounts.models import User, DriverProfile
 from vehicles.models import VehicleType, Vehicle, DriverVehicleAssignment
 from .models import DrivingShift, DrivingSession, ShiftAudit
 from .shift_forms import ShiftForm
-from .shift_services import attendance, save_shift, shift_action, select_shift, monthly_summary
+from .shift_services import attendance, save_shift, shift_action, select_shift, monthly_summary, monthly_summaries
 from .device_protocol import DeviceAPIError
 
 
@@ -200,3 +200,31 @@ class ShiftTests(TestCase):
         self.assertEqual(stats['pending'], 1)
         self.assertEqual(stats['assessed'], 0)
         self.assertIsNone(stats['rate'])
+
+    def test_month_report_query_count_stays_bounded_for_twenty_drivers(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+        driver_ids = []
+        for index in range(20):
+            user = User.objects.create_user(f'perf-{index}')
+            driver = DriverProfile.objects.create(user=user, full_name=f'A-{index}',
+                date_of_birth=date(1990,1,1), phone='123', address='City')
+            driver_ids.append(driver.pk)
+            assignment = DriverVehicleAssignment.objects.create(driver=driver, vehicle=self.vehicle,
+                start_at=self.now-timedelta(days=1))
+            self.create(assignment=assignment, start_at=self.now, end_at=self.now+timedelta(hours=1))
+        with self.assertNumQueries(1):
+            summary = monthly_summaries(driver_ids, timezone.localdate())
+        self.assertEqual(len(summary), 20)
+        self.assertTrue(all(stats['total'] == 1 for stats in summary.values()))
+        self.client.force_login(self.admin)
+        with CaptureQueriesContext(connection) as captured:
+            response = self.client.get(reverse('frontend:shift-report'))
+        self.assertEqual(response.status_code, 200)
+        self.assertLessEqual(len(captured), 6)
+
+    def test_invalid_report_month_and_filter_do_not_crash(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('frontend:shift-report'), {'month':'9999-12', 'driver':'9'*100})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['month'], timezone.localdate().replace(day=1))

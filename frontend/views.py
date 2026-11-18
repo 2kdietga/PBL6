@@ -322,12 +322,15 @@ def driver_detail(request, pk):
     driver = get_object_or_404(DriverProfile.objects.select_related('user'), pk=pk)
     license = DriverLicense.objects.filter(driver=driver).first()
     face = FaceProfile.objects.filter(driver=driver).first()
+    driver_tab = request.GET.get('tab') if request.GET.get('tab') in ('sessions', 'violations', 'profile') else 'overview'
+    period = request.GET.get('period', 'all')
+    period = period if period in ('all', '30', '90') else 'all'
     missing = driver.missing_requirements
     notice = ('Hồ sơ chưa đầy đủ: ' + ', '.join(missing) + '.') if missing else (
         'Cần duyệt GPLX còn hạn và khuôn mặt trước khi duyệt toàn bộ hồ sơ.' if not driver.can_approve else '')
     return page(request, 'driver_detail.html', title=driver.full_name, driver=driver, license=license, face=face,
-                overview=driver_overview(driver, request.GET.get('period', 'all')),
-                driver_tab=request.GET.get('tab') if request.GET.get('tab') in ('sessions', 'violations', 'profile') else 'overview',
+                overview=driver_overview(driver, period) if driver_tab != 'profile' else {'period': period},
+                driver_tab=driver_tab,
                 profile_requirements_notice=notice,
                 driver_version=revision(driver), license_version=revision(license), face_version=revision(face))
 
