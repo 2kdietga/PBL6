@@ -2,10 +2,12 @@ from django.urls import path
 from . import views
 from violations import views as violation_views
 from driving import shift_views
+from . import assignment_views
 
 app_name = 'frontend'
 
 urlpatterns = [
+    path('assignments/', assignment_views.listing, name='assignments'),
     path('shifts/', shift_views.calendar, name='shifts'),
     path('shifts/new/', shift_views.edit, name='shift-create'),
     path('shifts/report/', shift_views.report, name='shift-report'),
@@ -34,5 +36,5 @@ urlpatterns = [
     path('violations/<int:pk>/appeal/', violation_views.appeal_submit, name='appeal-submit'),
     path('violations/<int:pk>/appeal/review/', violation_views.appeal_review, name='appeal-review'),
 ]
-urlpatterns += [path(f'{key}/', views.listing, {'key': key}, name=key) for key in views.ENTITIES]
+urlpatterns += [path(f'{key}/', views.listing, {'key': key}, name=key) for key in views.ENTITIES if key != 'assignments']
 urlpatterns += [path('appeals/', violation_views.appeals, name='appeals')]

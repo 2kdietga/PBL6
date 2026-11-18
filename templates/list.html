@@ -5,7 +5,13 @@
 {% if key == 'devices' %}<p class="notice">Trạng thái thiết bị hiện được quản trị viên cập nhật thủ công.</p>{% endif %}
 {% if key == 'catalogs' %}<p class="notice">Có thể chọn và xóa nhiều loại xe chưa được sử dụng. Loại xe đã gắn với phương tiện sẽ không thể xóa.</p>{% endif %}
 <section class="card">
+  {% if assignment_tabs %}<nav class="assignment-tabs" aria-label="Hiệu lực phân công">{% for tab in assignment_tabs %}<a href="?{{ tab.query }}" {% if tab.active %}aria-current="page"{% endif %}>{{ tab.label }} <span>{{ tab.count }}</span></a>{% endfor %}</nav>{% endif %}
   <form class="toolbar" method="get" role="search">
+    {% if assignment_tabs %}
+    <input type="hidden" name="status" value="{{ selected_status }}">
+    <select name="driver" aria-label="Lọc tài xế"><option value="">Tất cả tài xế</option>{% for driver in assignment_drivers %}<option value="{{ driver.pk }}" {% if selected_driver == driver.pk|stringformat:'s' %}selected{% endif %}>{{ driver.full_name }}</option>{% endfor %}</select>
+    <select name="vehicle" aria-label="Lọc xe"><option value="">Tất cả xe</option>{% for vehicle in assignment_vehicles %}<option value="{{ vehicle.pk }}" {% if selected_vehicle == vehicle.pk|stringformat:'s' %}selected{% endif %}>{{ vehicle.license_plate }}</option>{% endfor %}</select>
+    {% endif %}
     <div class="search-control"><label class="sr-only" for="list-search">Tìm kiếm {{ title|lower }}</label><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input class="search" id="list-search" name="q" type="search" value="{{ query }}" placeholder="Tìm kiếm {{ title|lower }}…"></div>
     {% if choices %}<label class="sr-only" for="status-filter">Lọc trạng thái</label><select id="status-filter" name="status"><option value="">Tất cả trạng thái</option>{% for value, label in choices %}<option value="{{ value }}" {% if value == selected_status %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>{% endif %}
     <button class="button" type="submit">Tìm kiếm</button>
@@ -18,6 +24,6 @@
     {% empty %}<tr><td colspan="20"><div class="empty-state"><h2>{% if query or selected_status %}Không tìm thấy kết quả{% else %}Chưa có dữ liệu{% endif %}</h2><p>Chưa có dữ liệu phù hợp.</p>{% if query or selected_status %}<a class="button" href="{{ request.path }}">Xóa bộ lọc và xem lại</a>{% elif can_add %}<a class="button" href="{% url 'frontend:create' key %}">Thêm bản ghi đầu tiên</a>{% else %}{% endif %}</div></td></tr>{% endfor %}</tbody></table>
   </div>
   {% if can_bulk_delete %}</form>{% endif %}
-  <div class="table-footer"><span>{{ pagination.paginator.count }} bản ghi · Trang {{ pagination.number }}/{{ pagination.paginator.num_pages }}</span><div class="pagination" aria-label="Phân trang">{% if pagination.has_previous %}<a class="button" aria-label="Trang trước" href="?q={{ query|urlencode }}&amp;status={{ selected_status|urlencode }}&amp;page={{ pagination.previous_page_number }}">← Trước</a>{% endif %}{% if pagination.has_next %}<a class="button" aria-label="Trang sau" href="?q={{ query|urlencode }}&amp;status={{ selected_status|urlencode }}&amp;page={{ pagination.next_page_number }}">Sau →</a>{% endif %}</div></div>
+  <div class="table-footer"><span>{{ pagination.paginator.count }} bản ghi · Trang {{ pagination.number }}/{{ pagination.paginator.num_pages }}</span><div class="pagination" aria-label="Phân trang">{% if pagination.has_previous %}<a class="button" aria-label="Trang trước" href="?{% if pagination_query %}{{ pagination_query }}{% else %}q={{ query|urlencode }}&amp;status={{ selected_status|urlencode }}{% endif %}&amp;page={{ pagination.previous_page_number }}">← Trước</a>{% endif %}{% if pagination.has_next %}<a class="button" aria-label="Trang sau" href="?{% if pagination_query %}{{ pagination_query }}{% else %}q={{ query|urlencode }}&amp;status={{ selected_status|urlencode }}{% endif %}&amp;page={{ pagination.next_page_number }}">Sau →</a>{% endif %}</div></div>
 </section>
 {% endblock %}

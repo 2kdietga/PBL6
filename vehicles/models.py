@@ -167,6 +167,24 @@ class Device(models.Model):
         return self.device_code
 
 class DriverVehicleAssignment(models.Model):
+    def clean(self):
+        super().clean()
+        if not self.driver_id or not self.vehicle_id or not self.start_at:
+            return
+        if self.end_at and self.end_at <= self.start_at:
+            raise ValidationError({'end_at': 'Thời gian kết thúc phải sau thời gian bắt đầu.'})
+        old = type(self).objects.filter(pk=self.pk).first() if self.pk else None
+        # Allow narrowing legacy overlaps so an administrator can resolve them.
+        if old and (old.driver_id, old.vehicle_id, old.start_at) == (self.driver_id, self.vehicle_id, self.start_at):
+            if self.end_at == old.end_at or (self.end_at and (old.end_at is None or self.end_at <= old.end_at)):
+                return
+        overlaps = type(self).objects.filter(driver_id=self.driver_id, vehicle_id=self.vehicle_id).exclude(pk=self.pk)
+        overlaps = overlaps.filter(models.Q(end_at__isnull=True) | models.Q(end_at__gt=self.start_at))
+        if self.end_at:
+            overlaps = overlaps.filter(start_at__lt=self.end_at)
+        if overlaps.exists():
+            raise ValidationError('Tài xế và xe này đã có phân công chồng thời gian. Hãy chỉnh thời hạn phân công cũ trước.')
+
     driver = models.ForeignKey(
         DriverProfile,
         on_delete=models.PROTECT,

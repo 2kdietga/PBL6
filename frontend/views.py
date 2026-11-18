@@ -172,6 +172,13 @@ def edit(request, key, pk=None):
     if key not in ENTITIES or ENTITIES[key][1] is None: raise PermissionDenied
     model, form_class, title, *_ = ENTITIES[key]
     with transaction.atomic():
+        if key == 'assignments' and request.method == 'POST':
+            driver_ids = list(DriverVehicleAssignment.objects.filter(pk=pk).values_list('driver_id', flat=True)) if pk else []
+            submitted = request.POST.get('driver', '')
+            if submitted.isascii() and submitted.isdecimal() and len(submitted) <= 18:
+                driver_ids.append(int(submitted))
+            # Serialize validation and writes for the same driver.
+            list(DriverProfile.objects.select_for_update().filter(pk__in=driver_ids).order_by('pk'))
         obj = get_object_or_404(model.objects.select_for_update(), pk=pk) if pk else None
         form = form_class(request.POST or None, instance=obj)
         if request.method == 'POST' and form.is_valid():
