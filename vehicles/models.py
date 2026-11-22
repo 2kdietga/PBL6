@@ -109,6 +109,8 @@ class Device(models.Model):
         super().clean()
         if self.pk:
             old = type(self).objects.filter(pk=self.pk).first()
+            if old and old.device_code != self.device_code and hasattr(old, 'ai_config'):
+                raise ValidationError({'device_code': 'Thiết bị đã có cấu hình MQTT: không được đổi mã để tránh nhầm topic và phiên bản.'})
             if old and old.vehicle_id != self.vehicle_id and old.vehicle.driving_sessions.filter(status='STARTED').exists():
                 raise ValidationError({'vehicle': 'Cần kết thúc phiên lái trước khi chuyển thiết bị sang xe khác.'})
 

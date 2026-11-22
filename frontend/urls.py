@@ -3,10 +3,15 @@ from . import views
 from violations import views as violation_views
 from driving import shift_views
 from . import assignment_views
+from device_control import views as iot_views
 
 app_name = 'frontend'
 
 urlpatterns = [
+    path('iot/', iot_views.dashboard, name='iot'),
+    path('iot/status/', iot_views.status, name='iot-status'),
+    path('iot/<int:pk>/', iot_views.detail, name='iot-detail'),
+    path('iot/<int:pk>/status/', iot_views.status, name='iot-device-status'),
     path('assignments/', assignment_views.listing, name='assignments'),
     path('shifts/', shift_views.calendar, name='shifts'),
     path('shifts/new/', shift_views.edit, name='shift-create'),

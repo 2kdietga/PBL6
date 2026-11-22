@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     'vehicles',
     'driving',
     'violations',
+    'device_control',
 ]
 
 MIDDLEWARE = [
@@ -183,6 +184,13 @@ LOGGING = {
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+MQTT_HOST = os.getenv('MQTT_HOST', 'l9c60b66.ala.asia-southeast1.emqxsl.com')
+MQTT_PORT = int(os.getenv('MQTT_PORT', '8883'))
+MQTT_USERNAME = os.getenv('MQTT_USERNAME', '')
+MQTT_PASSWORD = os.getenv('MQTT_PASSWORD', '')
+MQTT_CLIENT_ID = os.getenv('MQTT_CLIENT_ID', 'savelife-web-worker')
+MQTT_CA_CERT = os.getenv('MQTT_CA_CERT') or None
 
 AUTH_USER_MODEL = "accounts.User"
 LOGIN_URL = 'frontend:login'

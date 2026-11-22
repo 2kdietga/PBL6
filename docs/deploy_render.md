@@ -1,5 +1,32 @@
 # Deploy SaveLife lên Render
 
+## MQTT tích hợp trong SaveLife
+
+Menu **Thiết bị** quản lý cả thông tin thiết bị và cấu hình AI. Chỉ cần **một Web
+Service**, chạy Gunicorn và MQTT worker chung dưới trình quản lý `run_services.py`:
+
+- Build command: `bash build.sh`
+- Start command: `bash start.sh`
+- Thêm vào Environment của Web Service: `MQTT_HOST`, `MQTT_PORT=8883`,
+  `MQTT_USERNAME`, `MQTT_PASSWORD`, `MQTT_CLIENT_ID=savelife-web-worker`.
+- `RUN_MQTT=true` (mặc định). Giữ một instance của Web Service.
+- Worker lỗi sẽ tự thử khởi động lại sau 5 giây; web vẫn phục vụ. Khi Gunicorn
+  thoát, service dừng để Render restart; khi Render gửi SIGTERM, cả hai process
+  được dừng và chờ kết thúc, tối đa 20 giây.
+- Khi rolling deploy, worker mới chờ khóa database của worker cũ được giải phóng
+  bằng cách thử lại mỗi 5 giây. Không xóa khóa thủ công.
+
+Không cần tạo Background Worker riêng. Nếu đã có, dừng nó trước khi bật chế độ
+chạy chung. Khi muốn tách lại: đặt `RUN_MQTT=false` trên web và chạy một Background
+Worker với start command `bash start-mqtt.sh`, cùng database và biến MQTT.
+
+Các biến trong `.env` local không tự xuất hiện trên Render; nhập trong Environment
+của dịch vụ. Khi chuyển từ worker trên laptop lên Render, dừng worker local trước.
+Nếu worker cũ crash, khóa database sẽ hết hạn sau 30 giây.
+Web Service ngủ hoặc restart thì MQTT cũng tạm ngừng; khi thức lại tự kết nối và
+đồng bộ. Chạy chung không thay đổi cơ chế ngủ của gói free.
+Chi tiết giao thức, ACL và kiểm tra kết nối: [mqtt_setup.md](mqtt_setup.md).
+
 ## 1. Web Service dùng database đã có
 
 Push code lên GitHub, tạo Render **Web Service**, runtime **Python**.

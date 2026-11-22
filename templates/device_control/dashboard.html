@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/iot.css' %}">
+<div class="page-heading"><div><h1>Thiết bị</h1><p class="subtitle">Quản lý Raspberry Pi, kết nối và cấu hình AI</p></div><a class="button primary" href="{% url 'frontend:create' 'devices' %}">＋ Thêm thiết bị</a></div>
+<p class="mqtt-status" id="worker-state" data-state="{% if available %}connected{% else %}disconnected{% endif %}" role="status">{% if available %}MQTT · Đã kết nối{% else %}MQTT · Mất kết nối{% endif %}</p>
+<div class="iot-summary" aria-label="Tổng quan kết nối"><span>Tổng: <strong data-count="total">{{ rows|length }}</strong></span><span>Online: <strong data-count="Online">—</strong></span><span>Offline: <strong data-count="Offline">—</strong></span><span>Mất tín hiệu: <strong data-count="Mất tín hiệu">—</strong></span><span>Không xác định: <strong data-count="Không xác định">—</strong></span></div>
+<section class="card"><form class="toolbar" method="get" role="search"><div class="search-control"><label class="sr-only" for="device-search">Tìm thiết bị</label><input class="search" id="device-search" name="q" value="{{ query }}" placeholder="Tìm mã, tên thiết bị hoặc biển số…"></div><button class="button">Tìm kiếm</button>{% if query %}<a class="button subtle" href="{% url 'frontend:devices' %}">Xóa bộ lọc</a>{% endif %}</form>
+<div class="table-scroll" data-iot-status="{% url 'frontend:iot-status' %}"><table>
+<thead><tr><th>Thiết bị</th><th>Xe</th><th>Kết nối</th><th>AI</th><th>Mong muốn / Đã áp dụng</th><th>Đồng bộ</th><th>Heartbeat cuối</th><th>Thao tác</th></tr></thead>
+<tbody>{% for row in rows %}<tr data-device-id="{{ row.id }}">
+<td><a href="{% url 'frontend:iot-detail' row.id %}">{{ row.code }}</a><br>{{ row.name }}</td><td>{{ row.vehicle }}</td>
+<td><span class="iot-badge" data-field="connection">{{ row.connection }}</span></td><td data-field="ai">{{ row.ai }}</td><td><span data-field="desired">{{ row.desired }}</span> / <span data-field="applied">{{ row.applied }}</span></td><td data-field="sync">{{ row.sync }}</td><td data-field="heartbeat">{{ row.heartbeat }}</td>
+<td class="row-action"><a class="row-link" href="{% url 'frontend:iot-detail' row.id %}">Chi tiết & cấu hình →</a><br><a class="row-link" href="{% url 'frontend:edit' 'devices' row.id %}">Sửa thông tin</a></td>
+</tr>{% empty %}<tr><td colspan="8"><div class="empty-state">Không có thiết bị phù hợp.</div></td></tr>{% endfor %}</tbody>
+</table></div>
+</section>
+<script src="{% static 'js/iot-status.js' %}" defer></script>
+{% endblock %}

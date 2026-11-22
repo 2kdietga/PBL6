@@ -147,7 +147,10 @@ class ConsistencyTests(TestCase):
                 response = self.client.get(detail)
                 self.assertContains(response, f'value="{action}"')
                 old_version = revision(target)
-                target.save()
+                # Windows clocks can return the same instant for adjacent saves.
+                # This scenario requires a distinct revision, not elapsed CPU time.
+                with patch('django.utils.timezone.now', return_value=target.updated_at + timedelta(seconds=1)):
+                    target.save()
                 for version in ('', old_version):
                     self.client.post(url, {'action': action, 'version': version})
                     target.refresh_from_db()
@@ -194,10 +197,12 @@ class ConsistencyTests(TestCase):
         late = ProfileForm({**self.profile_payload(), 'phone': '0905999999'}, instance=DriverProfile.objects.get(pk=self.driver.pk))
         self.assertTrue(first.is_valid(), first.errors)
         self.assertTrue(late.is_valid(), late.errors)
-        save_profile(first, self.user)
-        current = DriverProfile.objects.get(pk=self.driver.pk)
-        current.approval_status = 'APPROVED'
-        current.save()
+        # Make the intervening review deterministically newer than both forms.
+        with patch('django.utils.timezone.now', return_value=self.driver.updated_at + timedelta(seconds=1)):
+            save_profile(first, self.user)
+            current = DriverProfile.objects.get(pk=self.driver.pk)
+            current.approval_status = 'APPROVED'
+            current.save()
         with self.assertRaises(ValidationError):
             save_profile(late, self.user)
         self.driver.refresh_from_db()

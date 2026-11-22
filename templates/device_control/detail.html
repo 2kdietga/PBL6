@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/iot.css' %}">
+<div class="iot-detail">
+<a href="{% url 'frontend:devices' %}">← Thiết bị</a>
+<h1>{{ device.device_code }} · {{ device.name }}</h1><p>Phương tiện: {{ device.vehicle.license_plate }}</p>
+<a class="button" href="{% url 'frontend:edit' 'devices' device.pk %}">Sửa thông tin & khóa API</a>
+<p class="mqtt-status" id="worker-state" data-state="checking" role="status">MQTT · Đang kiểm tra</p>
+<section class="panel device-health" data-iot-status="{% url 'frontend:iot-device-status' device.pk %}"><div data-device-id="{{ device.pk }}">
+<div class="health-heading"><h2>Trạng thái thiết bị</h2><span class="health-live">LIVE</span></div>
+<div class="health-grid">
+  <div class="health-tile"><span class="health-label">Kết nối</span><span class="health-pill" data-field="connection" data-state="unknown">Không xác định</span></div>
+  <div class="health-tile"><span class="health-label">AI Runtime</span><span class="health-pill" data-field="ai" data-state="unknown">Không xác định</span></div>
+</div>
+<div class="health-sync"><span class="health-label">Đồng bộ cấu hình</span><span class="health-pill" data-field="sync">{{ config.get_sync_status_display }}</span></div>
+<div class="health-versions" aria-label="Phiên bản cấu hình">
+  <div><span class="health-label">Mong muốn</span><strong><small>v</small><span data-field="desired">{{ config.desired_version }}</span></strong></div>
+  <div><span class="health-label">Đã áp dụng</span><strong><small>v</small><span data-field="applied">{{ config.applied_version }}</span></strong></div>
+  <div><span class="health-label">Runtime</span><strong><small>v</small><span data-field="runtime">—</span></strong></div>
+</div>
+<div class="health-times">
+  <div><span class="health-label">Heartbeat</span><time data-field="heartbeat">—</time></div>
+  <div><span class="health-label">Cập nhật</span><time data-field="updated_at">{{ config.updated_at|date:'d/m/Y H:i:s'|default:'—' }}</time></div>
+  <div><span class="health-label">Xác nhận</span><time data-field="applied_at">{{ config.applied_at|date:'d/m/Y H:i:s'|default:'—' }}</time></div>
+</div>
+<p class="health-error" data-field="error">{{ config.last_error }}</p>
+</div></section>
+<section class="panel"><h2>Cấu hình mong muốn</h2><p>Lưu sẽ tạo phiên bản mới. Các giới hạn là phạm vi thử nghiệm của dự án.</p>
+<form method="post">{% csrf_token %}{{ form.non_field_errors }}{{ form.version }}
+{% for field in form.visible_fields %}
+{% if forloop.counter == 1 %}<h3>Buồn ngủ</h3>{% elif forloop.counter == 3 %}<h3>Mất tập trung</h3>{% elif forloop.counter == 6 %}<h3>Điện thoại và vật thể</h3>{% endif %}
+<div class="field iot-field">{{ field.label_tag }} {{ field }} <small>{{ field.help_text }}</small>{{ field.errors }}</div>
+{% endfor %}<button class="button primary" type="submit">Lưu cấu hình</button></form></section>
+<p id="iot-stale-form" class="notice" hidden>Có phiên bản mới hơn biểu mẫu đang mở. Tải lại trang để chỉnh tiếp; nội dung bạn đang nhập vẫn được giữ.</p>
+<section class="panel"><h2>Cấu hình đã được Pi xác nhận</h2>
+<dl id="iot-applied">{% for key, value in config.applied_parameters.items %}<dt>{{ key }}</dt><dd>{{ value }}</dd>{% empty %}<dd>Chưa nhận xác nhận từ AI.</dd>{% endfor %}</dl></section>
+<section class="panel"><h2>Hoạt động gần đây</h2><ul id="iot-events">{% for event in events %}<li>{{ event.created_at|date:'d/m/Y H:i:s' }} — {{ event.message }}</li>{% empty %}<li>Chưa có sự kiện.</li>{% endfor %}</ul></section>
+</div>
+<script src="{% static 'js/iot-status.js' %}" defer></script>
+{% endblock %}

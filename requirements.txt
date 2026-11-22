@@ -7,3 +7,4 @@ requests>=2.34,<3
 gunicorn>=25.3,<26
 whitenoise>=6.12,<7
 dj-database-url>=2.3,<3
+paho-mqtt>=2.1,<3

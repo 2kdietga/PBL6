@@ -45,6 +45,8 @@ DRIVER_MENU = [('dashboard', 'Tổng quan'), ('profile', 'Hồ sơ cá nhân'), 
 def page(request, template, **context):
     admin = is_admin(request.user)
     current = request.resolver_match.url_name
+    if current in ('iot', 'iot-detail'):
+        current = 'devices'
     active = {'home': 'dashboard', 'driver-detail': 'drivers', 'driver-action': 'drivers',
               'violation-detail': 'violations', 'violation-review': 'violations', 'face': 'profile',
               'appeal-submit': 'violations', 'appeal-review': 'appeals', 'shift-create': 'shifts', 'shift-edit': 'shifts', 'shift-detail': 'shifts', 'shift-action': 'shifts', 'shift-report': 'shifts', 'device-key': 'devices'}.get(current, current)
@@ -147,6 +149,9 @@ def cells(key, obj):
 
 @login_required
 def listing(request, key):
+    if key == 'devices':
+        from device_control.views import dashboard
+        return dashboard(request)
     model, form, title, columns, fields = ENTITIES[key]
     rows = scoped(request, model) if key in ('vehicles', 'sessions') else model.objects.all() if is_admin(request.user) else None
     if rows is None: raise PermissionDenied
