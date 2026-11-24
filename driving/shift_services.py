@@ -4,7 +4,7 @@ from datetime import datetime, time, timedelta
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import Count, Min
+from django.db.models import Count, Min, Q
 from django.utils import timezone
 
 from accounts.concurrency import require_revision
@@ -23,7 +23,7 @@ def attendance(shift, now=None):
     late = max(0, math.ceil((first - shift.start_at).total_seconds() / 60)) if first else 0
     punctuality = 'LATE' if first and first > shift.start_at + timedelta(minutes=shift.grace_minutes) else 'ON_TIME'
     if shift.cancelled:
-        label = 'Đã hủy'
+        label = 'Nhầm phân công · đã điều chỉnh' if hasattr(shift, 'replacement') else 'Đã hủy'
     elif shift.decision:
         label = shift.get_decision_display()
     elif first:
@@ -35,7 +35,7 @@ def attendance(shift, now=None):
     else:
         label = 'Nghi vắng · chờ xác nhận'
     if shift.cancelled:
-        activity = 'Đã hủy'
+        activity = label
     elif active:
         activity = 'Quá giờ · phiên chưa kết thúc' if now >= shift.end_at else 'Đang lái'
     elif now < shift.end_at:
@@ -52,7 +52,7 @@ def attendance(shift, now=None):
 def snapshot(shift):
     return {field: (value.isoformat() if hasattr(value, 'isoformat') else value)
             for field in ('assignment_id', 'start_at', 'end_at', 'early_minutes', 'grace_minutes', 'note',
-                          'cancelled', 'decision', 'admin_response', 'explanation', 'acknowledged_at')
+                          'cancelled', 'decision', 'admin_response', 'explanation', 'acknowledged_at', 'replaces_id')
             for value in [getattr(shift, field)]}
 
 
@@ -98,6 +98,44 @@ def save_shift(form, user):
     shift.save()
     audit(shift, user, 'Cập nhật lịch' if before else 'Tạo ca', before, form.cleaned_data.get('reason', ''))
     return shift
+
+
+@transaction.atomic
+def correct_shift(pk, form, user):
+    require_admin(user)
+    original = DrivingShift.objects.get(pk=pk)
+    target_id = form.cleaned_data['assignment'].pk
+    # Lock both sets of resources in a deterministic order before assignments/shifts.
+    assignments = list(DriverVehicleAssignment.objects.filter(pk__in=[original.assignment_id, target_id]))
+    list(DriverProfile.objects.select_for_update().filter(pk__in=[a.driver_id for a in assignments]).order_by('pk'))
+    list(Vehicle.objects.select_for_update().filter(pk__in=[a.vehicle_id for a in assignments]).order_by('pk'))
+    locked = {a.pk: a for a in DriverVehicleAssignment.objects.select_for_update().filter(
+        pk__in=[a.pk for a in assignments]).order_by('pk')}
+    if any((a.driver_id, a.vehicle_id) != (locked[a.pk].driver_id, locked[a.pk].vehicle_id) for a in assignments):
+        raise ValidationError('Phân công đã thay đổi. Vui lòng tải lại.')
+    old = DrivingShift.objects.select_for_update().get(pk=pk)
+    require_revision(form.cleaned_data.get('version'), old)
+    if old.cancelled or old.decision or hasattr(old, 'replacement'):
+        raise ValidationError('Ca đã được xử lý, không thể điều chỉnh.')
+    if old.sessions.filter(Q(status='STARTED') | Q(ended_at__isnull=True)).exists():
+        raise ValidationError('Cần kết thúc tất cả phiên lái trước khi điều chỉnh lịch.')
+    reason = (form.cleaned_data.get('reason') or '').strip()
+    if not reason or len(reason) > 2000:
+        raise ValidationError('Cần nhập lý do nhầm phân công từ 1 đến 2000 ký tự.')
+    new = form.save(commit=False)
+    if new.pk or new.start_at <= timezone.now():
+        raise ValidationError('Ca thay thế phải là ca mới và bắt đầu trong tương lai.')
+    before = snapshot(old)
+    old.cancelled = True
+    old.admin_response = reason
+    old.save(update_fields=['cancelled', 'admin_response', 'updated_at'])
+    new.assignment = locked[target_id]
+    new.replaces = old
+    new.full_clean()
+    new.save()
+    audit(old, user, 'Điều chỉnh nhầm phân công', before, f'{reason}\nCa thay thế: #{new.pk}')
+    audit(new, user, 'Tạo ca thay thế', {}, f'{reason}\nThay thế ca: #{old.pk}')
+    return new
 
 
 @transaction.atomic

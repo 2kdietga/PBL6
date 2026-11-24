@@ -10,12 +10,80 @@ from accounts.concurrency import revision
 from accounts.models import User, DriverProfile
 from vehicles.models import VehicleType, Vehicle, DriverVehicleAssignment
 from .models import DrivingShift, DrivingSession, ShiftAudit
-from .shift_forms import ShiftForm
+from .shift_forms import ShiftForm, ShiftCorrectionForm
+from .shift_services import correct_shift
 from .shift_services import attendance, save_shift, shift_action, select_shift, monthly_summary, monthly_summaries
 from .device_protocol import DeviceAPIError
 
 
 class ShiftTests(TestCase):
+    def correction(self, old, **kwargs):
+        return ShiftCorrectionForm(self.payload(reason='Admin phân nhầm', version=revision(old), **kwargs), original=old)
+
+    def test_correction_preserves_sessions_and_excludes_old_from_report(self):
+        old = self.create(start_at=self.now-timedelta(hours=2))
+        session = DrivingSession.objects.create(assignment=self.assignment, shift=old, status='ENDED',
+            started_at=old.start_at, ended_at=self.now-timedelta(hours=1))
+        form = self.correction(old)
+        self.assertTrue(form.is_valid(), form.errors)
+        new = correct_shift(old.pk, form, self.admin)
+        old.refresh_from_db()
+        session.refresh_from_db()
+        self.assertTrue(old.cancelled)
+        self.assertEqual(new.replaces_id, old.pk)
+        self.assertEqual(session.shift_id, old.pk)
+        self.assertEqual(session.ended_at, self.now-timedelta(hours=1))
+        self.assertEqual(old.audits.count(), 1)
+        self.assertEqual(new.audits.count(), 1)
+        self.assertIn('Nhầm phân công', attendance(old)['label'])
+        self.assertEqual(monthly_summary(self.driver, timezone.localdate(new.start_at))['total'], 1)
+        with self.assertRaises(ValidationError):
+            correct_shift(old.pk, form, self.admin)
+
+    def test_correction_blocks_open_session_and_missing_reason(self):
+        old = self.create(start_at=self.now-timedelta(hours=2))
+        DrivingSession.objects.create(assignment=self.assignment, shift=old, started_at=old.start_at)
+        form = self.correction(old)
+        self.assertTrue(form.is_valid(), form.errors)
+        with self.assertRaises(ValidationError):
+            correct_shift(old.pk, form, self.admin)
+        old.refresh_from_db()
+        self.assertFalse(old.cancelled)
+        self.assertFalse(ShiftCorrectionForm(self.payload(version=revision(old)), original=old).is_valid())
+
+    def test_correction_permissions_stale_form_conflict_and_rollback(self):
+        old = self.create(start_at=self.now-timedelta(hours=2))
+        form = self.correction(old)
+        self.assertTrue(form.is_valid(), form.errors)
+        from django.core.exceptions import PermissionDenied
+        with self.assertRaises(PermissionDenied):
+            correct_shift(old.pk, form, self.user)
+        form.cleaned_data['version'] = 'stale'
+        with self.assertRaises(ValidationError):
+            correct_shift(old.pk, form, self.admin)
+        form.cleaned_data['version'] = revision(old)
+        self.create(start_at=self.now+timedelta(hours=2), end_at=self.now+timedelta(hours=3))
+        with self.assertRaises(ValidationError):
+            correct_shift(old.pk, form, self.admin)
+        old.refresh_from_db()
+        self.assertFalse(old.cancelled)
+        self.assertEqual(old.audits.count(), 0)
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse('frontend:shift-correct', args=[old.pk])).status_code, 403)
+
+    def test_correction_view_changes_assignment(self):
+        old = self.create(start_at=self.now-timedelta(hours=2))
+        target = DriverVehicleAssignment.objects.create(driver=self.other_driver, vehicle=self.vehicle2, start_at=self.now)
+        self.client.force_login(self.admin)
+        detail = self.client.get(reverse('frontend:shift-detail', args=[old.pk]))
+        self.assertContains(detail, 'Điều chỉnh lịch do nhầm phân công')
+        response = self.client.post(reverse('frontend:shift-correct', args=[old.pk]),
+            self.payload(assignment=target.pk, reason='Nhầm tài xế', version=revision(old)))
+        self.assertEqual(response.status_code, 302)
+        new = DrivingShift.objects.get(replaces=old)
+        self.assertEqual(new.assignment_id, target.pk)
+        self.assertContains(self.client.get(response.url), 'Ca thay thế cho ca')
+
     @classmethod
     def setUpTestData(cls):
         cls.now = timezone.now().replace(microsecond=0)

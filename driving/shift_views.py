@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -12,8 +13,8 @@ from accounts.models import DriverProfile
 from vehicles.models import Vehicle
 from frontend.views import admin_required, is_admin, page
 from .models import DrivingShift
-from .shift_forms import ShiftForm
-from .shift_services import attendance, monthly_summaries, save_shift, shift_action
+from .shift_forms import ShiftForm, ShiftCorrectionForm
+from .shift_services import attendance, monthly_summaries, save_shift, shift_action, correct_shift
 
 
 def visible(user):
@@ -75,8 +76,28 @@ def detail(request, pk):
     actual = attendance(shift)
     return page(request, 'shift_detail.html', title=f'Ca lái #{shift.pk}', shift=shift, actual=actual,
                 version=revision(shift), audits=shift.audits.all() if is_admin(request.user) else [],
+                can_correct=not shift.cancelled and not shift.decision and not actual['active'],
                 can_edit=not shift.cancelled and not shift.decision and shift.start_at > timezone.now() and not actual['count'],
                 decisions=DrivingShift.Decision.choices)
+
+
+@admin_required
+def correct(request, pk):
+    original = get_object_or_404(visible(request.user), pk=pk)
+    form = ShiftCorrectionForm(request.POST or None, original=original,
+        initial={field: getattr(original, field) for field in
+                 ('assignment', 'start_at', 'end_at', 'early_minutes', 'grace_minutes', 'note')})
+    if request.method == 'POST' and form.is_valid():
+        try:
+            new = correct_shift(pk, form, request.user)
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, 'Đã điều chỉnh lịch do nhầm phân công và tạo ca thay thế.')
+            return redirect('frontend:shift-detail', pk=new.pk)
+    return page(request, 'form.html', title=f'Điều chỉnh lịch do nhầm phân công · ca #{pk}', form=form,
+        back_url=reverse('frontend:shift-detail', args=[pk]),
+        note='Kết thúc tất cả phiên lái trước khi điều chỉnh. Ca cũ và các phiên được giữ lại, ca cũ không tính đánh giá chấp hành. Chọn phân công và thời gian mới trong tương lai để tạo ca thay thế; bắt buộc nhập lý do.')
 
 
 @login_required

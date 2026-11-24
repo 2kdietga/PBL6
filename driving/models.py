@@ -83,6 +83,8 @@ class DrivingSession(models.Model):
 
 
 class DrivingShift(models.Model):
+    replaces = models.OneToOneField('self', null=True, blank=True, on_delete=models.PROTECT,
+                                   related_name='replacement', editable=False)
     class Decision(models.TextChoices):
         ON_TIME = 'ON_TIME', 'Đúng giờ'
         LATE = 'LATE', 'Đi muộn'
@@ -125,6 +127,8 @@ class DrivingShift(models.Model):
         if self.start_at < assignment.start_at or (assignment.end_at and self.end_at > assignment.end_at):
             raise ValidationError('Ca phải nằm trong thời gian phân công xe.')
         conflicts = type(self).objects.filter(cancelled=False, start_at__lt=self.end_at, end_at__gt=self.start_at).exclude(pk=self.pk)
+        if self.replaces_id:
+            conflicts = conflicts.exclude(pk=self.replaces_id)
         if conflicts.filter(models.Q(assignment__driver_id=assignment.driver_id) | models.Q(assignment__vehicle_id=assignment.vehicle_id)).exists():
             raise ValidationError('Tài xế hoặc xe đã có ca trùng thời gian.')
 

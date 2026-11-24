@@ -18,6 +18,7 @@ urlpatterns = [
     path('shifts/report/', shift_views.report, name='shift-report'),
     path('shifts/<int:pk>/', shift_views.detail, name='shift-detail'),
     path('shifts/<int:pk>/edit/', shift_views.edit, name='shift-edit'),
+    path('shifts/<int:pk>/correct/', shift_views.correct, name='shift-correct'),
     path('shifts/<int:pk>/action/', shift_views.action, name='shift-action'),
     path('devices/<int:pk>/key/', views.device_key, name='device-key'),
     path('', views.dashboard, name='home'),

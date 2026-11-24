@@ -51,3 +51,12 @@ class ShiftForm(forms.ModelForm):
         if value <= timezone.now():
             raise forms.ValidationError('Cần lên lịch trước giờ bắt đầu ca.')
         return value
+
+
+class ShiftCorrectionForm(ShiftForm):
+    def __init__(self, *args, original, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.instance.replaces = original
+        self.initial['version'] = revision(original)
+        self.fields['reason'].required = True
+        self.fields['reason'].label = 'Lý do nhầm phân công'
