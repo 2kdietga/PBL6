@@ -2,6 +2,7 @@
 {% load status_tags %}
 {% block content %}
 <div class="driver-page">
+  {% if face_job %}{% include 'includes/face_job.html' %}{% endif %}
   <a class="back-link" href="{% url 'frontend:drivers' %}">← Danh sách tài xế</a>
   <div class="driver-heading">
     <div class="driver-identity">

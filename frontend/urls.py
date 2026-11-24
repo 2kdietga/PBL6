@@ -8,6 +8,8 @@ from device_control import views as iot_views
 app_name = 'frontend'
 
 urlpatterns = [
+    path('face-jobs/<int:pk>/status/', views.face_job_status, name='face-job-status'),
+    path('face-jobs/<int:pk>/retry/', views.face_job_retry, name='face-job-retry'),
     path('iot/', iot_views.dashboard, name='iot'),
     path('iot/status/', iot_views.status, name='iot-status'),
     path('iot/<int:pk>/', iot_views.detail, name='iot-detail'),

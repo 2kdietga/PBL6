@@ -156,3 +156,29 @@ window.addEventListener('pageshow', () => {
   });
   setMenu(false, false);
 });
+// Follow background face processing without reloading or discarding an open form.
+document.querySelectorAll('[data-face-job]').forEach(panel => {
+  async function pollFaceJob() {
+    if (panel.dataset.active !== 'true') return;
+    try {
+      if (!document.hidden) {
+        const response = await fetch(panel.dataset.statusUrl, {credentials: 'same-origin', cache: 'no-store', headers: {'Accept': 'application/json'}});
+        if (response.status === 403 || response.status === 404 || response.redirected) {
+          panel.dataset.active = 'false';
+          return;
+        }
+        if (response.ok) {
+          const data = await response.json();
+          panel.querySelector('[data-job-label]').textContent = data.label;
+          panel.querySelector('[data-job-error]').textContent = data.error;
+          panel.querySelector('[data-job-retry]').hidden = data.status !== 'FAILED';
+          panel.querySelector('input[name="token"]').value = data.token;
+          panel.dataset.active = String(data.active);
+          if (data.status === 'DONE') panel.querySelector('[data-job-help]').textContent = 'Ảnh đã xử lý xong và chuyển sang chờ duyệt. Mở lại hồ sơ để xem kết quả; thay đổi chưa lưu trên trang này vẫn được giữ nguyên.';
+        }
+      }
+    } catch (_) { /* Keep the form usable when the network is temporarily unavailable. */ }
+    if (panel.dataset.active === 'true') window.setTimeout(pollFaceJob, 5000);
+  }
+  if (panel.dataset.active === 'true') window.setTimeout(pollFaceJob, 3000);
+});

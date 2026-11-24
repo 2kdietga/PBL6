@@ -31,6 +31,7 @@
     </header>
     <main id="main" tabindex="-1">
       {% for message in messages %}<div class="notice flash {{ message.tags }}" role="{% if message.tags == 'error' %}alert{% else %}status{% endif %}"><span>{{ message }}</span><button type="button" class="dismiss-notice" aria-label="Đóng thông báo">×</button></div>{% endfor %}
+      {% if account_face_job and not is_admin %}{% include 'includes/face_job.html' with face_job=account_face_job %}{% endif %}
       {% block content %}{% endblock %}
     </main>
     {% include 'includes/footer.html' %}

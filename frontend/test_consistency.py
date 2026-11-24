@@ -180,7 +180,7 @@ class ConsistencyTests(TestCase):
         payload = self.profile_payload()
         self.driver.full_name = 'New name'
         self.driver.save()
-        with patch('accounts.profile_services.extract_embedding') as extract:
+        with patch('accounts.face_jobs.extract_embedding') as extract:
             response = self.client.post(reverse('frontend:profile'), {**payload, 'avatar': image_file()})
         extract.assert_not_called()
         self.assertContains(response, 'Vui lòng tải lại trang')

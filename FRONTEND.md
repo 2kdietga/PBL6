@@ -5,6 +5,26 @@
 Chạy `python manage.py runserver`, mở http://127.0.0.1:8000/.
 Các trang hiện đọc và ghi database cấu hình trong `.env`. Không tạo dữ liệu mẫu, không cần npm.
 
+## Xử lý ảnh khuôn mặt nền
+
+Chạy `python manage.py migrate`, sau đó mở thêm một terminal chạy
+`python manage.py face_worker` khi phát triển bằng `runserver`.
+Khi triển khai qua `start.sh` / `run_services.py`, worker ảnh được khởi động và tự khởi động lại cùng dịch vụ web, độc lập với MQTT.
+
+Lưu hồ sơ chỉ tiếp nhận ảnh vào hàng đợi database; tạo embedding và tải Cloudinary
+được thực hiện trong worker. Sau khi ảnh được tiếp nhận, người dùng có thể chuyển
+trang hoặc đóng trình duyệt. Trạng thái tự cập nhật trên web, có nút thử lại khi lỗi.
+Thông tin cá nhân được lưu ngay; bộ ảnh cũ vẫn được giữ đến khi toàn bộ bộ ảnh mới
+xử lý thành công rồi chuyển sang chờ duyệt. Gửi bộ ảnh khác sẽ thay yêu cầu đang chờ;
+kết quả từ yêu cầu cũ không ghi đè bộ mới.
+
+Hàng đợi tồn tại qua lần khởi động lại, tự thử lại tối đa 3 lần (chờ 30/60 giây).
+Job bị ngắt giữa chừng được nhận lại sau khi lease 30 phút hết hạn.
+Ảnh gốc tạm lưu trong database, xóa sau khi thành công; nếu thất bại thì giữ để thử lại,
+hoặc thay khi người dùng gửi bộ mới. Có thể chạy `python manage.py face_worker --once`
+để xử lý tối đa một job. Nhận diện khi mở session trên Pi vẫn chạy đồng bộ để xác nhận
+đúng người trước khi cho phép lái.
+
 ## Đã hoạt động
 
 | Trang | URL | Chức năng |

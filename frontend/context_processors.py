@@ -1,4 +1,4 @@
-from accounts.models import FaceProfile
+from accounts.models import FaceProfile, FaceProcessingJob
 
 
 def account_face(request):
@@ -11,4 +11,6 @@ def account_face(request):
         .only('face_image_url', 'approval_status')
         .first()
     )
-    return {'account_face': face}
+    job = (None if request.user.is_superuser or request.user.role == 'ADMIN'
+           else FaceProcessingJob.objects.filter(driver__user=request.user).first())
+    return {'account_face': face, 'account_face_job': job}

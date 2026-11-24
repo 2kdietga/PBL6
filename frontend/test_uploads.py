@@ -6,7 +6,8 @@ from PIL import Image
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, SimpleTestCase, override_settings
 from django.urls import reverse
-from accounts.models import User, DriverProfile, DriverLicense, FaceProfile
+from accounts.models import User, DriverProfile, DriverLicense, FaceProfile, FaceProcessingJob
+from accounts.face_jobs import process_next_face_job
 from accounts.media_services import MediaError, extract_embedding
 from accounts.concurrency import revision
 
@@ -25,11 +26,15 @@ class UploadTests(TestCase):
         self.profile = dict(full_name='Minh', date_of_birth='1990-01-01', phone='0905111111', address='Đà Nẵng', version=revision(self.driver))
         self.license = dict(license_number='123456', license_class='C', issued_date='2025-01-01', expiry_date='2030-01-01', version='new')
 
-    @patch('accounts.profile_services.upload_image', return_value=('https://res.cloudinary.com/test/face.png', 'face-new'))
-    @patch('accounts.profile_services.extract_embedding', return_value=[0.2, 0.4, 0.6])
+    @patch('accounts.face_jobs.upload_image', return_value=('https://res.cloudinary.com/test/face.png', 'face-new'))
+    @patch('accounts.face_jobs.extract_embedding', return_value=[0.2, 0.4, 0.6])
     def test_avatar_and_vector_persist_and_replacement_needs_review(self, extract, upload):
         payload = {**self.profile, 'avatar': image_file(), 'extra_images':[image_file('side.png')]}
         self.assertRedirects(self.client.post(reverse('frontend:profile'), payload), reverse('frontend:profile'))
+        extract.assert_not_called()
+        upload.assert_not_called()
+        self.assertFalse(FaceProfile.objects.exists())
+        process_next_face_job()
         face = FaceProfile.objects.get(driver=self.driver)
         self.assertEqual(face.embedding, [0.2,0.4,0.6])
         self.assertEqual(len(extract.call_args.args[0]), 1)
@@ -41,20 +46,23 @@ class UploadTests(TestCase):
         face.save()
         self.driver.refresh_from_db()
         self.profile['version'] = revision(self.driver)
-        with patch('accounts.profile_services.delete_images') as cleanup, self.captureOnCommitCallbacks(execute=True):
+        with patch('accounts.face_jobs.delete_images') as cleanup, self.captureOnCommitCallbacks(execute=True):
             self.client.post(reverse('frontend:profile'), {**self.profile, 'avatar':image_file()})
+            process_next_face_job()
         face.refresh_from_db()
         self.assertEqual(face.approval_status, 'PENDING')
         self.assertEqual(FaceProfile.objects.count(), 1)
-        cleanup.assert_called_once_with(['face-new'])
+        cleanup.assert_any_call(['face-new'])
 
-    @patch('accounts.profile_services.upload_image')
-    @patch('accounts.profile_services.extract_embedding', side_effect=MediaError('Nhận diện thất bại'))
+    @patch('accounts.face_jobs.upload_image')
+    @patch('accounts.face_jobs.extract_embedding', side_effect=MediaError('Nhận diện thất bại'))
     def test_embedding_failure_preserves_profile(self, extract, upload):
         response = self.client.post(reverse('frontend:profile'), {**self.profile, 'full_name':'Tên mới', 'avatar':image_file()})
-        self.assertContains(response, 'Nhận diện thất bại')
+        self.assertEqual(response.status_code, 302)
+        process_next_face_job()
+        self.assertContains(self.client.get(reverse('frontend:profile')), 'Nhận diện thất bại')
         self.driver.refresh_from_db()
-        self.assertEqual(self.driver.full_name, 'Minh')
+        self.assertEqual(self.driver.full_name, 'Tên mới')
         self.assertFalse(FaceProfile.objects.exists())
         upload.assert_not_called()
 
@@ -81,7 +89,7 @@ class UploadTests(TestCase):
         self.assertFalse(DriverLicense.objects.exists())
         cleanup.assert_called_once_with(['orphan'])
 
-    @patch('accounts.profile_services.extract_embedding')
+    @patch('accounts.face_jobs.extract_embedding')
     def test_fake_image_is_rejected_before_remote_call(self, extract):
         response = self.client.post(reverse('frontend:profile'), {**self.profile, 'avatar':SimpleUploadedFile('bad.png', b'not-an-image', content_type='image/png')})
         self.assertEqual(response.status_code, 200)
@@ -94,7 +102,7 @@ class UploadTests(TestCase):
         self.assertContains(response, 'name="extra_images"')
         self.assertContains(response, 'multiple')
 
-    @patch('accounts.profile_services.extract_embedding')
+    @patch('accounts.face_jobs.extract_embedding')
     def test_extra_images_validate_every_file_and_limit(self, extract):
         for extras in ([image_file(), SimpleUploadedFile('bad.png', b'bad', content_type='image/png')],
                        [image_file() for _ in range(5)]):
@@ -103,19 +111,21 @@ class UploadTests(TestCase):
             self.assertIn('extra_images', response.context['form'].errors)
         extract.assert_not_called()
 
-    @patch('accounts.profile_services.delete_images')
-    @patch('accounts.profile_services.upload_image', return_value=('https://example.com/face.png', 'new-main'))
-    @patch('accounts.profile_services.extract_embedding', side_effect=[[1.0] + [0.0] * 511, MediaError('Extra failed')])
+    @patch('accounts.face_jobs.delete_images')
+    @patch('accounts.face_jobs.upload_image', return_value=('https://example.com/face.png', 'new-main'))
+    @patch('accounts.face_jobs.extract_embedding', side_effect=[[1.0] + [0.0] * 511, MediaError('Extra failed')])
     def test_extra_embedding_failure_rolls_back_entire_upload(self, extract, upload, cleanup):
         response = self.client.post(reverse('frontend:profile'),
             {**self.profile, 'avatar': image_file(), 'extra_images': [image_file('side.png')]})
-        self.assertContains(response, 'Extra failed')
+        self.assertEqual(response.status_code, 302)
+        process_next_face_job()
+        self.assertContains(self.client.get(reverse('frontend:profile')), 'Extra failed')
         self.assertFalse(FaceProfile.objects.exists())
-        cleanup.assert_called_once_with(['new-main'])
+        cleanup.assert_any_call(['new-main'])
 
-    @patch('accounts.profile_services.delete_images')
-    @patch('accounts.profile_services.upload_image', return_value=('https://example.com/side.png', 'side-new'))
-    @patch('accounts.profile_services.extract_embedding', return_value=[1.0] + [0.0] * 511)
+    @patch('accounts.face_jobs.delete_images')
+    @patch('accounts.face_jobs.upload_image', return_value=('https://example.com/side.png', 'side-new'))
+    @patch('accounts.face_jobs.extract_embedding', return_value=[1.0] + [0.0] * 511)
     def test_add_and_clear_extras_without_replacing_avatar(self, extract, upload, cleanup):
         face = FaceProfile.objects.create(driver=self.driver, face_image_url='https://example.com/main.png',
             cloudinary_public_id='main', embedding=[1.0] + [0.0] * 511, approval_status='APPROVED')
@@ -123,6 +133,7 @@ class UploadTests(TestCase):
         self.profile['version'] = revision(self.driver)
         self.assertRedirects(self.client.post(reverse('frontend:profile'),
             {**self.profile, 'extra_images': [image_file()]}), reverse('frontend:profile'))
+        process_next_face_job()
         face.refresh_from_db()
         self.assertEqual(face.cloudinary_public_id, 'main')
         self.assertEqual(face.extra_images[0]['public_id'], 'side-new')
@@ -131,19 +142,22 @@ class UploadTests(TestCase):
         self.profile['version'] = revision(self.driver)
         with self.captureOnCommitCallbacks(execute=True):
             self.client.post(reverse('frontend:profile'), {**self.profile, 'clear_extra_images': 'on'})
+            process_next_face_job()
         face.refresh_from_db()
         self.assertEqual(face.extra_images, [])
         cleanup.assert_called_with(['side-new'])
 
-    @patch('accounts.profile_services.delete_images')
-    @patch('accounts.profile_services.upload_image', return_value=('https://res.cloudinary.com/test/face.png', 'new'))
-    @patch('accounts.profile_services.extract_embedding', return_value=[0.2,0.4])
+    @patch('accounts.face_jobs.delete_images')
+    @patch('accounts.face_jobs.upload_image', return_value=('https://res.cloudinary.com/test/face.png', 'new'))
+    @patch('accounts.face_jobs.extract_embedding', return_value=[0.2,0.4])
     @patch('accounts.profile_services.FaceProfile.save', side_effect=RuntimeError('database failure'))
     def test_database_failure_rolls_back_profile_and_cleans_uploaded_avatar(self, save, extract, upload, cleanup):
-        with self.assertRaises(RuntimeError):
-            self.client.post(reverse('frontend:profile'), {**self.profile, 'full_name':'Tên mới', 'avatar':image_file()})
+        self.client.post(reverse('frontend:profile'), {**self.profile, 'full_name':'Tên mới', 'avatar':image_file()})
+        process_next_face_job()
         self.driver.refresh_from_db()
-        self.assertEqual(self.driver.full_name, 'Minh')
+        self.assertEqual(self.driver.full_name, 'Tên mới')
+        self.assertFalse(FaceProfile.objects.exists())
+        self.assertEqual(FaceProcessingJob.objects.get(driver=self.driver).status, 'QUEUED')
         cleanup.assert_called_with(['new'])
 
 

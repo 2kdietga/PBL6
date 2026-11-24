@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
+import uuid
 
 
 class User(AbstractUser):
@@ -177,3 +178,31 @@ class FaceProfile(models.Model):
 
     def __str__(self):
         return f"FaceProfile - {self.driver.full_name}"
+
+
+class FaceProcessingJob(models.Model):
+    class Status(models.TextChoices):
+        QUEUED = 'QUEUED', 'Đang chờ xử lý ảnh'
+        RUNNING = 'RUNNING', 'Đang xử lý ảnh khuôn mặt'
+        DONE = 'DONE', 'Ảnh đã xử lý xong'
+        FAILED = 'FAILED', 'Xử lý ảnh chưa thành công'
+
+    driver = models.OneToOneField(DriverProfile, on_delete=models.CASCADE, related_name='face_job')
+    token = models.UUIDField(default=uuid.uuid4)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.QUEUED, db_index=True)
+    replace_avatar = models.BooleanField(default=False)
+    replace_extras = models.BooleanField(default=False)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    available_at = models.DateTimeField(default=timezone.now)
+    lease_until = models.DateTimeField(null=True, blank=True)
+    error = models.TextField(blank=True)
+    uploaded_ids = models.JSONField(default=list, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class FaceProcessingImage(models.Model):
+    job = models.ForeignKey(FaceProcessingJob, on_delete=models.CASCADE, related_name='images')
+    is_avatar = models.BooleanField(default=False)
+    name = models.CharField(max_length=255)
+    content_type = models.CharField(max_length=100)
+    data = models.BinaryField()

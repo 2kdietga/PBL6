@@ -11,9 +11,10 @@ logger = logging.getLogger('savelife.services')
 
 
 class Services:
-    def __init__(self, web_command, mqtt_command, restart_delay=5, shutdown_timeout=20):
+    def __init__(self, web_command, mqtt_command, restart_delay=5, shutdown_timeout=20, face_command=None):
         self.web_command = web_command
         self.mqtt_command = mqtt_command
+        self.face_command = face_command
         self.restart_delay = restart_delay
         self.shutdown_timeout = shutdown_timeout
         self.stopping = threading.Event()
@@ -53,6 +54,8 @@ class Services:
         try:
             web = self.start(self.web_command)
             mqtt = self.start(self.mqtt_command) if self.mqtt_command else None
+            face = self.start(self.face_command) if self.face_command else None
+            face_retry_at = None
             retry_at = None
             while not self.stopping.wait(0.25):
                 if web.poll() is not None:
@@ -66,6 +69,14 @@ class Services:
                 if retry_at is not None and time.monotonic() >= retry_at:
                     mqtt = self.start(self.mqtt_command)
                     retry_at = None
+                if face is not None and face.poll() is not None:
+                    logger.warning('Face worker exited (%s); retrying in %ss.', face.returncode, self.restart_delay)
+                    self.children.remove(face)
+                    face = None
+                    face_retry_at = time.monotonic() + self.restart_delay
+                if face_retry_at is not None and time.monotonic() >= face_retry_at:
+                    face = self.start(self.face_command)
+                    face_retry_at = None
             return 0
         finally:
             self.shutdown()
@@ -82,10 +93,11 @@ def main():
            '--workers', '1', '--threads', '4', '--timeout', '180',
            '--access-logfile', '-', '--error-logfile', '-']
     mqtt = [sys.executable, '-u', 'manage.py', 'mqtt_worker'] if mqtt_enabled else None
-    services = Services(web, mqtt)
+    face = [sys.executable, '-u', 'manage.py', 'face_worker']
+    services = Services(web, mqtt, face_command=face)
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, services.stop)
-    logger.info('Starting web%s.', ' and MQTT worker' if mqtt_enabled else '')
+    logger.info('Starting web, face worker%s.', ' and MQTT worker' if mqtt_enabled else '')
     return services.run()
 
 

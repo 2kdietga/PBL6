@@ -9,11 +9,13 @@ from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.http import JsonResponse
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
-from accounts.models import User, DriverProfile, DriverLicense, FaceProfile
+from accounts.models import User, DriverProfile, DriverLicense, FaceProfile, FaceProcessingJob
+from accounts.face_jobs import retry_face_job
 from accounts.templatetags.status_tags import status_badge
 from accounts.media_services import MediaError
 from accounts.profile_services import save_profile, save_license
@@ -295,11 +297,35 @@ def profile(request):
     if request.method == 'POST' and form.is_valid():
         try:
             save_profile(form, request.user)
-            messages.success(request, 'Đã lưu hồ sơ.' + (' Đã gửi ảnh khuôn mặt chờ duyệt.' if (form.cleaned_data.get('avatar') or form.cleaned_data.get('extra_images') or form.cleaned_data.get('clear_extra_images')) else ''))
+            messages.success(request, 'Đã lưu hồ sơ.' + (' Ảnh đang được xử lý nền, bạn có thể tiếp tục làm việc khác.' if (form.cleaned_data.get('avatar') or form.cleaned_data.get('extra_images') or form.cleaned_data.get('clear_extra_images')) else ''))
             return redirect('frontend:profile')
         except (MediaError, ValidationError) as exc:
             form.add_error(None, exc if isinstance(exc, ValidationError) else str(exc))
     return page(request, 'form.html', title='Hồ sơ cá nhân', form=form, face=face, status_code=obj.approval_status if obj else '', status=obj.get_approval_status_display() if obj else 'Chưa có hồ sơ', note='Chọn một ảnh đại diện và tối đa 4 ảnh khuôn mặt bổ sung, mỗi ảnh tối đa 5 MB. Bộ ảnh mới cần được quản trị viên duyệt lại.')
+
+
+@login_required
+@never_cache
+def face_job_status(request, pk):
+    jobs = FaceProcessingJob.objects.all() if is_admin(request.user) else FaceProcessingJob.objects.filter(driver__user=request.user)
+    job = get_object_or_404(jobs, pk=pk)
+    return JsonResponse({'status': job.status, 'label': job.get_status_display(), 'error': job.error,
+                         'token': str(job.token), 'active': job.status in ('QUEUED', 'RUNNING')})
+
+
+@login_required
+@require_POST
+def face_job_retry(request, pk):
+    jobs = FaceProcessingJob.objects.all() if is_admin(request.user) else FaceProcessingJob.objects.filter(driver__user=request.user)
+    job = get_object_or_404(jobs, pk=pk)
+    try:
+        retry_face_job(job.driver_id, request.POST.get('token'))
+    except ValidationError as exc:
+        messages.error(request, ' '.join(exc.messages))
+    else:
+        messages.success(request, 'Đã gửi lại yêu cầu xử lý ảnh nền.')
+    return redirect(reverse('frontend:driver-detail', args=[job.driver_id]) + '?tab=profile'
+                    if is_admin(request.user) else reverse('frontend:profile'))
 
 
 @login_required
@@ -334,6 +360,7 @@ def driver_detail(request, pk):
     notice = ('Hồ sơ chưa đầy đủ: ' + ', '.join(missing) + '.') if missing else (
         'Cần duyệt GPLX còn hạn và khuôn mặt trước khi duyệt toàn bộ hồ sơ.' if not driver.can_approve else '')
     return page(request, 'driver_detail.html', title=driver.full_name, driver=driver, license=license, face=face,
+                face_job=FaceProcessingJob.objects.filter(driver=driver).first(),
                 overview=driver_overview(driver, period) if driver_tab != 'profile' else {'period': period},
                 driver_tab=driver_tab,
                 profile_requirements_notice=notice,

@@ -1,0 +1,11 @@
+<section class="notice" role="status" data-face-job data-status-url="{% url 'frontend:face-job-status' face_job.pk %}" data-active="{% if face_job.status == 'QUEUED' or face_job.status == 'RUNNING' %}true{% else %}false{% endif %}">
+  <div>
+    <strong data-job-label>{{ face_job.get_status_display }}</strong>
+    <p data-job-help>{% if face_job.status == 'DONE' %}Mở lại hồ sơ để xem ảnh mới và trạng thái duyệt.{% else %}Bạn có thể chuyển trang hoặc đóng trình duyệt. Bộ ảnh hiện tại được giữ nguyên đến khi bộ mới xử lý thành công. Nếu dịch vụ bận, hệ thống sẽ tự thử lại tối đa 3 lần.{% endif %}</p>
+    <p data-job-error>{{ face_job.error }}</p>
+    <form method="post" action="{% url 'frontend:face-job-retry' face_job.pk %}" data-job-retry {% if face_job.status != 'FAILED' %}hidden{% endif %}>
+      {% csrf_token %}<input type="hidden" name="token" value="{{ face_job.token }}"><button class="button" type="submit">Thử xử lý ảnh lại</button>
+    </form>
+    {% if not is_admin %}<a href="{% url 'frontend:profile' %}">Xem hồ sơ cá nhân</a>{% endif %}
+  </div>
+</section>
