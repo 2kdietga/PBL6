@@ -169,6 +169,11 @@ class Device(models.Model):
         return self.device_code
 
 class DriverVehicleAssignment(models.Model):
+    @property
+    def scheduled_shifts(self):
+        from driving.models import DrivingShift
+        return DrivingShift.objects.filter(models.Q(assignment_id=self.pk) | models.Q(second_assignment_id=self.pk))
+
     def clean(self):
         super().clean()
         if not self.driver_id or not self.vehicle_id or not self.start_at:
@@ -223,10 +228,10 @@ class DriverVehicleAssignment(models.Model):
                     for field in ('driver_id', 'vehicle_id', 'start_at')
                 ):
                     raise ValidationError('Phân công đã có phiên lái: không được đổi tài xế, xe hoặc thời gian bắt đầu.')
-                if old.shifts.exists():
+                if old.scheduled_shifts.exists():
                     if any(getattr(old, field) != getattr(self, field) for field in ('driver_id', 'vehicle_id', 'start_at')):
                         raise ValidationError('Phân công đã có lịch ca: không được đổi tài xế, xe hoặc ngày bắt đầu.')
-                    if self.end_at and old.shifts.filter(cancelled=False, end_at__gt=self.end_at).exists():
+                    if self.end_at and old.scheduled_shifts.filter(cancelled=False, end_at__gt=self.end_at).exists():
                         raise ValidationError('Còn ca nằm ngoài ngày kết thúc mới. Cần xử lý các ca trước khi kết thúc phân công.')
             super().save(*args, **kwargs)
 

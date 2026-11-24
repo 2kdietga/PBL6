@@ -17,6 +17,84 @@ from .device_protocol import DeviceAPIError
 
 
 class ShiftTests(TestCase):
+    def second_assignment(self):
+        return DriverVehicleAssignment.objects.create(driver=self.other_driver, vehicle=self.vehicle,
+            start_at=self.assignment.start_at, end_at=self.assignment.end_at)
+
+    def test_shared_shift_form_and_driver_conflicts(self):
+        second = self.second_assignment()
+        form = ShiftForm(self.payload(second_assignment=second.pk))
+        self.assertTrue(form.is_valid(), form.errors)
+        shift = save_shift(form, self.admin)
+        self.assertEqual(shift.second_assignment_id, second.pk)
+        self.assertFalse(ShiftForm(self.payload(second_assignment=self.assignment.pk)).is_valid())
+        elsewhere = DriverVehicleAssignment.objects.create(driver=self.other_driver, vehicle=self.vehicle2, start_at=self.now)
+        self.assertFalse(ShiftForm(self.payload(assignment=elsewhere.pk)).is_valid())
+        shift.cancelled = True
+        shift.save()
+        self.assertFalse(ShiftForm(self.payload(second_assignment=elsewhere.pk)).is_valid())
+        second.end_at = self.now+timedelta(hours=2)
+        second.save()
+        self.assertFalse(ShiftForm(self.payload(second_assignment=second.pk)).is_valid())
+
+    def test_shared_shift_access_acknowledgements_and_explanations_are_independent(self):
+        second = self.second_assignment()
+        shift = self.create(second_assignment=second)
+        self.client.force_login(self.other)
+        self.assertContains(self.client.get(reverse('frontend:shift-detail', args=[shift.pk])), 'Other')
+        calendar = self.client.get(reverse('frontend:shifts'), {'week': timezone.localdate(shift.start_at).isoformat()})
+        self.assertContains(calendar, reverse('frontend:shift-detail', args=[shift.pk]))
+        for user in (self.user, self.other):
+            shift = shift_action(shift.pk, dict(version=revision(shift), action='acknowledge'), user)
+            shift = shift_action(shift.pk, dict(version=revision(shift), action='explain', explanation=user.username), user)
+        self.assertIsNotNone(shift.acknowledged_at)
+        self.assertIsNotNone(shift.second_acknowledged_at)
+        self.assertEqual(shift.explanation, self.user.username)
+        self.assertEqual(shift.second_explanation, self.other.username)
+        outsider = User.objects.create_user('outsider')
+        self.client.force_login(outsider)
+        self.assertEqual(self.client.get(reverse('frontend:shift-detail', args=[shift.pk])).status_code, 404)
+
+    def test_shared_report_excludes_individual_lateness_and_counts_own_sessions(self):
+        second = self.second_assignment()
+        shift = self.create(second_assignment=second, start_at=self.now-timedelta(hours=4),
+                            end_at=self.now-timedelta(hours=1), decision='LATE')
+        DrivingSession.objects.create(assignment=self.assignment, shift=shift, status='ENDED',
+            started_at=shift.start_at+timedelta(minutes=10), ended_at=shift.start_at+timedelta(hours=1))
+        reports = monthly_summaries([self.driver.pk, self.other_driver.pk], timezone.localdate(shift.start_at))
+        for data in reports.values():
+            self.assertEqual(data['shared'], 1)
+            self.assertEqual(data['total'], 1)
+            self.assertEqual(data['due'], 1)
+            self.assertEqual(data['LATE'], 0)
+            self.assertEqual(data['ABSENT'], 0)
+            self.assertIsNone(data['rate'])
+        self.assertEqual(reports[self.driver.pk]['performed'], 1)
+        self.assertEqual(reports[self.other_driver.pk]['performed'], 0)
+        self.assertEqual(monthly_summary(self.other_driver, timezone.localdate(shift.start_at))['shared'], 1)
+
+    def test_second_assignment_cannot_be_shortened_or_reassigned(self):
+        second = self.second_assignment()
+        shift = self.create(second_assignment=second)
+        second.end_at = shift.end_at-timedelta(minutes=1)
+        with self.assertRaises(ValidationError):
+            second.save()
+        second.refresh_from_db()
+        second.vehicle = self.vehicle2
+        with self.assertRaises(ValidationError):
+            second.save()
+
+    def test_shared_correction_preserves_both_drivers_and_sessions(self):
+        second = self.second_assignment()
+        old = self.create(second_assignment=second, start_at=self.now-timedelta(hours=1))
+        DrivingSession.objects.create(assignment=second, shift=old, status='ENDED',
+            started_at=old.start_at, ended_at=self.now)
+        form = self.correction(old, second_assignment=second.pk)
+        self.assertTrue(form.is_valid(), form.errors)
+        new = correct_shift(old.pk, form, self.admin)
+        self.assertEqual(new.second_assignment_id, second.pk)
+        self.assertEqual(old.sessions.get().assignment_id, second.pk)
+
     def correction(self, old, **kwargs):
         return ShiftCorrectionForm(self.payload(reason='Admin phân nhầm', version=revision(old), **kwargs), original=old)
 

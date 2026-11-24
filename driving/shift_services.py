@@ -4,7 +4,7 @@ from datetime import datetime, time, timedelta
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import Count, Min, Q
+from django.db.models import Count, Min, Q, F
 from django.utils import timezone
 
 from accounts.concurrency import require_revision
@@ -51,7 +51,8 @@ def attendance(shift, now=None):
 
 def snapshot(shift):
     return {field: (value.isoformat() if hasattr(value, 'isoformat') else value)
-            for field in ('assignment_id', 'start_at', 'end_at', 'early_minutes', 'grace_minutes', 'note',
+            for field in ('assignment_id', 'second_assignment_id', 'second_acknowledged_at',
+                          'second_explanation', 'second_explained_at', 'start_at', 'end_at', 'early_minutes', 'grace_minutes', 'note',
                           'cancelled', 'decision', 'admin_response', 'explanation', 'acknowledged_at', 'replaces_id')
             for value in [getattr(shift, field)]}
 
@@ -67,20 +68,29 @@ def require_admin(user):
 
 
 def lock_assignment(pk):
-    original = DriverVehicleAssignment.objects.get(pk=pk)
-    DriverProfile.objects.select_for_update().get(pk=original.driver_id)
-    Vehicle.objects.select_for_update().get(pk=original.vehicle_id)
-    assignment = DriverVehicleAssignment.objects.select_for_update().get(pk=pk)
-    if (assignment.driver_id, assignment.vehicle_id) != (original.driver_id, original.vehicle_id):
+    return lock_assignments([pk])[pk]
+
+
+def lock_assignments(ids):
+    ids = {pk for pk in ids if pk is not None}
+    originals = list(DriverVehicleAssignment.objects.filter(pk__in=ids))
+    list(DriverProfile.objects.select_for_update().filter(pk__in=[a.driver_id for a in originals]).order_by('pk'))
+    list(Vehicle.objects.select_for_update().filter(pk__in=[a.vehicle_id for a in originals]).order_by('pk'))
+    locked = {a.pk: a for a in DriverVehicleAssignment.objects.select_for_update().filter(pk__in=ids).order_by('pk')}
+    if set(locked) != ids or any((a.driver_id, a.vehicle_id) != (locked[a.pk].driver_id, locked[a.pk].vehicle_id) for a in originals):
         raise ValidationError('Phân công đã thay đổi. Vui lòng tải lại.')
-    return assignment
+    return locked
 
 
 @transaction.atomic
 def save_shift(form, user):
     require_admin(user)
-    assignment = lock_assignment(form.cleaned_data['assignment'].pk)
     shift = form.save(commit=False)
+    original = DrivingShift.objects.get(pk=shift.pk) if shift.pk else None
+    locked = lock_assignments([shift.assignment_id, shift.second_assignment_id,
+                              original.assignment_id if original else None,
+                              original.second_assignment_id if original else None])
+    assignment = locked[shift.assignment_id]
     before = {}
     if shift.pk:
         old = DrivingShift.objects.select_for_update().get(pk=shift.pk)
@@ -91,9 +101,14 @@ def save_shift(form, user):
             raise ValidationError('Ca đã bắt đầu hoặc đã xử lý không được sửa lịch. Hãy dùng giải trình để ghi nhận ngoại lệ.')
         before = snapshot(old)
         shift.acknowledged_at = None
+        shift.second_acknowledged_at = None
+        if old.second_assignment_id != shift.second_assignment_id:
+            shift.second_explanation = ''
+            shift.second_explained_at = None
     if shift.start_at <= timezone.now():
         raise ValidationError('Cần lên lịch trước giờ bắt đầu ca.')
     shift.assignment = assignment
+    shift.second_assignment = locked.get(shift.second_assignment_id)
     shift.full_clean()
     shift.save()
     audit(shift, user, 'Cập nhật lịch' if before else 'Tạo ca', before, form.cleaned_data.get('reason', ''))
@@ -105,14 +120,9 @@ def correct_shift(pk, form, user):
     require_admin(user)
     original = DrivingShift.objects.get(pk=pk)
     target_id = form.cleaned_data['assignment'].pk
+    second = form.cleaned_data.get('second_assignment')
     # Lock both sets of resources in a deterministic order before assignments/shifts.
-    assignments = list(DriverVehicleAssignment.objects.filter(pk__in=[original.assignment_id, target_id]))
-    list(DriverProfile.objects.select_for_update().filter(pk__in=[a.driver_id for a in assignments]).order_by('pk'))
-    list(Vehicle.objects.select_for_update().filter(pk__in=[a.vehicle_id for a in assignments]).order_by('pk'))
-    locked = {a.pk: a for a in DriverVehicleAssignment.objects.select_for_update().filter(
-        pk__in=[a.pk for a in assignments]).order_by('pk')}
-    if any((a.driver_id, a.vehicle_id) != (locked[a.pk].driver_id, locked[a.pk].vehicle_id) for a in assignments):
-        raise ValidationError('Phân công đã thay đổi. Vui lòng tải lại.')
+    locked = lock_assignments([original.assignment_id, original.second_assignment_id, target_id, second.pk if second else None])
     old = DrivingShift.objects.select_for_update().get(pk=pk)
     require_revision(form.cleaned_data.get('version'), old)
     if old.cancelled or old.decision or hasattr(old, 'replacement'):
@@ -130,6 +140,7 @@ def correct_shift(pk, form, user):
     old.admin_response = reason
     old.save(update_fields=['cancelled', 'admin_response', 'updated_at'])
     new.assignment = locked[target_id]
+    new.second_assignment = locked.get(second.pk if second else None)
     new.replaces = old
     new.full_clean()
     new.save()
@@ -143,26 +154,29 @@ def shift_action(pk, data, user):
     if not user.is_authenticated or not user.is_active:
         raise PermissionDenied
     original = DrivingShift.objects.get(pk=pk)
-    assignment = lock_assignment(original.assignment_id)
+    locked = lock_assignments([original.assignment_id, original.second_assignment_id])
     shift = DrivingShift.objects.select_for_update().get(pk=pk)
     require_revision(data.get('version'), shift)
     before = snapshot(shift)
     action = data.get('action')
     if action in ('acknowledge', 'explain'):
-        if assignment.driver.user_id != user.pk:
+        second_driver = bool(shift.second_assignment_id and locked.get(shift.second_assignment_id)
+                             and locked[shift.second_assignment_id].driver.user_id == user.pk)
+        if shift.assignment_id not in locked or (locked[shift.assignment_id].driver.user_id != user.pk and not second_driver):
             raise PermissionDenied
+        prefix = 'second_' if second_driver else ''
         if shift.cancelled or shift.decision:
             raise ValidationError('Ca đã được xử lý, không thể thay đổi.')
         if action == 'acknowledge':
-            if shift.acknowledged_at:
+            if getattr(shift, prefix + 'acknowledged_at'):
                 raise ValidationError('Bạn đã nhận lịch này.')
-            shift.acknowledged_at = timezone.now()
+            setattr(shift, prefix + 'acknowledged_at', timezone.now())
         else:
             content = (data.get('explanation') or '').strip()
             if not content or len(content) > 5000:
                 raise ValidationError('Nhập giải trình từ 1 đến 5000 ký tự.')
-            shift.explanation = content
-            shift.explained_at = timezone.now()
+            setattr(shift, prefix + 'explanation', content)
+            setattr(shift, prefix + 'explained_at', timezone.now())
     else:
         require_admin(user)
         reason = (data.get('response') or '').strip()
@@ -191,7 +205,7 @@ def shift_action(pk, data, user):
 
 
 def select_shift(assignment, now):
-    rows = list(DrivingShift.objects.select_for_update().filter(assignment=assignment, cancelled=False,
+    rows = list(DrivingShift.objects.select_for_update().filter(Q(assignment=assignment) | Q(second_assignment=assignment), cancelled=False,
                 decision='', end_at__gt=now, start_at__lte=now + timedelta(minutes=120)).order_by('start_at', 'pk'))
     current = [s for s in rows if s.start_at <= now]
     candidates = current or [s for s in rows if now >= s.start_at - timedelta(minutes=s.early_minutes)]
@@ -209,14 +223,28 @@ def monthly_summary(driver, month):
 def monthly_summaries(driver_ids, month):
     start = timezone.make_aware(datetime.combine(month.replace(day=1), time.min))
     next_month = start.replace(year=start.year+1, month=1) if start.month == 12 else start.replace(month=start.month+1)
-    result = {pk: dict(total=0, due=0, performed=0, pending=0, ON_TIME=0, LATE=0, ABSENT=0, EXCUSED=0, late_minutes=0)
+    result = {pk: dict(total=0, due=0, performed=0, pending=0, shared=0, ON_TIME=0, LATE=0, ABSENT=0, EXCUSED=0, late_minutes=0)
               for pk in driver_ids}
-    rows = DrivingShift.objects.filter(assignment__driver_id__in=driver_ids, cancelled=False,
+    rows = DrivingShift.objects.filter(Q(assignment__driver_id__in=driver_ids) | Q(second_assignment__driver_id__in=driver_ids), cancelled=False,
         start_at__gte=start, start_at__lt=next_month).order_by().values(
-            'pk', 'assignment__driver_id', 'start_at', 'end_at', 'decision').annotate(
-                first_start=Min('sessions__started_at'), session_count=Count('sessions'))
+            'pk', 'assignment__driver_id', 'second_assignment__driver_id', 'start_at', 'end_at', 'decision').annotate(
+                first_start=Min('sessions__started_at'), session_count=Count('sessions'),
+                first_count=Count('sessions', filter=Q(sessions__assignment_id=F('assignment_id'))),
+                second_count=Count('sessions', filter=Q(sessions__assignment_id=F('second_assignment_id'))))
     now = timezone.now()
     for shift in rows:
+        if shift['second_assignment__driver_id']:
+            for driver_id, count_key in ((shift['assignment__driver_id'], 'first_count'),
+                                         (shift['second_assignment__driver_id'], 'second_count')):
+                if driver_id not in result:
+                    continue
+                counts = result[driver_id]
+                counts['total'] += 1
+                counts['shared'] += 1
+                if shift['end_at'] <= now:
+                    counts['due'] += 1
+                    counts['performed'] += bool(shift[count_key])
+            continue
         counts = result[shift['assignment__driver_id']]
         counts['total'] += 1
         if shift['end_at'] > now:

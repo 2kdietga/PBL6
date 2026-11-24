@@ -48,7 +48,7 @@ class DrivingSession(models.Model):
 
     def clean(self):
         super().clean()
-        if self.shift_id and self.shift.assignment_id != self.assignment_id:
+        if self.shift_id and self.assignment_id not in (self.shift.assignment_id, self.shift.second_assignment_id):
             raise ValidationError('Ca lái phải thuộc cùng phân công với phiên lái.')
         if self.assignment_id and self.vehicle_id != self.assignment.vehicle_id:
             raise ValidationError('Xe của phiên lái phải khớp với phân công.')
@@ -92,6 +92,11 @@ class DrivingShift(models.Model):
         EXCUSED = 'EXCUSED', 'Được miễn đánh giá'
 
     assignment = models.ForeignKey(DriverVehicleAssignment, on_delete=models.PROTECT, related_name='shifts')
+    second_assignment = models.ForeignKey(DriverVehicleAssignment, null=True, blank=True,
+                                         on_delete=models.PROTECT, related_name='shared_shifts')
+    second_acknowledged_at = models.DateTimeField(null=True, blank=True)
+    second_explanation = models.TextField(blank=True)
+    second_explained_at = models.DateTimeField(null=True, blank=True)
     start_at = models.DateTimeField()
     end_at = models.DateTimeField()
     early_minutes = models.PositiveSmallIntegerField(default=15)
@@ -124,12 +129,24 @@ class DrivingShift(models.Model):
         if self.cancelled:
             return
         assignment = self.assignment
-        if self.start_at < assignment.start_at or (assignment.end_at and self.end_at > assignment.end_at):
-            raise ValidationError('Ca phải nằm trong thời gian phân công xe.')
+        assignments = [assignment]
+        if self.second_assignment_id:
+            second = self.second_assignment
+            if second.vehicle_id != assignment.vehicle_id:
+                raise ValidationError('Hai tài xế trong một ca phải được phân công cùng xe.')
+            if second.driver_id == assignment.driver_id:
+                raise ValidationError('Cần chọn hai tài xế khác nhau.')
+            assignments.append(second)
+        for member in assignments:
+            if self.start_at < member.start_at or (member.end_at and self.end_at > member.end_at):
+                raise ValidationError('Ca phải nằm trong thời gian phân công xe của từng tài xế.')
         conflicts = type(self).objects.filter(cancelled=False, start_at__lt=self.end_at, end_at__gt=self.start_at).exclude(pk=self.pk)
         if self.replaces_id:
             conflicts = conflicts.exclude(pk=self.replaces_id)
-        if conflicts.filter(models.Q(assignment__driver_id=assignment.driver_id) | models.Q(assignment__vehicle_id=assignment.vehicle_id)).exists():
+        drivers = [member.driver_id for member in assignments]
+        if conflicts.filter(models.Q(assignment__driver_id__in=drivers)
+                            | models.Q(second_assignment__driver_id__in=drivers)
+                            | models.Q(assignment__vehicle_id=assignment.vehicle_id)).exists():
             raise ValidationError('Tài xế hoặc xe đã có ca trùng thời gian.')
 
     def __str__(self):

@@ -21,6 +21,68 @@ from .models import DrivingSession, DrivingShift
 @override_settings(FACE_COSINE_THRESHOLD='0.75', FACE_COSINE_MARGIN=0.05,
                    DEVICE_API_REQUIRE_HTTPS=False, DEVICE_API_CHECK_FRAME_AGE=False)
 class SessionAPITests(TestCase):
+    def add_second_driver(self):
+        user = User.objects.create_user('relief-driver')
+        driver = DriverProfile.objects.create(user=user, full_name='Relief driver',
+            date_of_birth=date(1990, 1, 1), phone='456', address='City')
+        DriverLicense.objects.create(driver=driver, license_number='RELIEF',
+            license_class='B', license_standard='VN_2025', status='ACTIVE', issued_date=date(2025, 1, 1),
+            expiry_date=timezone.localdate()+timedelta(days=30),
+            front_image_url='https://example.com/front.jpg', back_image_url='https://example.com/back.jpg')
+        FaceProfile.objects.create(driver=driver, embedding=[0.0, 1.0]+[0.0]*510,
+            face_image_url='https://example.com/face.jpg', approval_status='APPROVED')
+        driver.approval_status = 'APPROVED'
+        driver.save()
+        assignment = DriverVehicleAssignment.objects.create(driver=driver, vehicle=self.vehicle,
+            start_at=self.assignment.start_at)
+        self.shift.second_assignment = assignment
+        self.shift.full_clean()
+        self.shift.save()
+        return driver, assignment
+
+    def test_shared_shift_handover_requires_end_and_preserves_driver_identity(self):
+        driver, assignment = self.add_second_driver()
+        first = self.start().json()['data']
+        self.extract.return_value = driver.face_profile.embedding
+        blocked = self.start()
+        self.assertEqual(blocked.json()['code'], 'SESSION_ALREADY_ACTIVE')
+        self.assertEqual(DrivingSession.objects.count(), 1)
+        self.assertEqual(self.end(first['session_id']).status_code, 200)
+        response = self.start()
+        self.assertEqual(response.status_code, 201, response.content)
+        second = response.json()['data']
+        self.assertEqual(second['shift_id'], first['shift_id'])
+        self.assertEqual(second['driver']['id'], driver.pk)
+        session = DrivingSession.objects.get(pk=second['session_id'])
+        previous = DrivingSession.objects.get(pk=first['session_id'])
+        self.assertEqual(session.assignment_id, assignment.pk)
+        self.assertEqual(previous.assignment_id, self.assignment.pk)
+        self.assertLessEqual(previous.ended_at, session.started_at)
+        self.end(session.pk)
+        self.extract.return_value = self.vector
+        self.assertEqual(self.start().status_code, 201)
+
+    def test_shared_shift_second_driver_can_start_first_but_must_be_eligible(self):
+        driver, assignment = self.add_second_driver()
+        self.extract.return_value = driver.face_profile.embedding
+        DriverLicense.objects.filter(driver=driver).update(expiry_date=timezone.localdate()-timedelta(days=1))
+        self.assertEqual(self.start().json()['code'], 'DRIVER_NOT_ELIGIBLE')
+        self.assertFalse(DrivingSession.objects.exists())
+        DriverLicense.objects.filter(driver=driver).update(expiry_date=timezone.localdate()+timedelta(days=30))
+        self.assertEqual(self.start().status_code, 201)
+
+    def test_shared_shift_membership_and_time_window_required(self):
+        driver, assignment = self.add_second_driver()
+        self.extract.return_value = driver.face_profile.embedding
+        DrivingShift.objects.filter(pk=self.shift.pk).update(second_assignment=None)
+        self.assertEqual(self.start().json()['code'], 'NO_SCHEDULED_SHIFT')
+        DrivingShift.objects.filter(pk=self.shift.pk).update(second_assignment=assignment, end_at=timezone.now())
+        self.assertEqual(self.start().json()['code'], 'NO_SCHEDULED_SHIFT')
+        DrivingShift.objects.filter(pk=self.shift.pk).update(end_at=timezone.now()+timedelta(hours=2))
+        DriverVehicleAssignment.objects.filter(pk=assignment.pk).update(end_at=timezone.now())
+        self.assertEqual(self.start().json()['code'], 'NO_ACTIVE_ASSIGNMENT')
+        self.assertFalse(DrivingSession.objects.exists())
+
     @classmethod
     def setUpTestData(cls):
         cls.vector = [1.0] + [0.0] * 511

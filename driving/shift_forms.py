@@ -18,11 +18,14 @@ class ShiftForm(forms.ModelForm):
     assignment = AssignmentChoiceField(queryset=DriverVehicleAssignment.objects.none(), label='Phân công tài xế / xe',
         help_text='Chỉ hiển thị phân công chưa hết hạn, gồm cả phân công sắp bắt đầu.')
     version = forms.CharField(widget=forms.HiddenInput, required=False)
+    second_assignment = AssignmentChoiceField(queryset=DriverVehicleAssignment.objects.none(), required=False,
+        label='Tài xế thứ hai (không bắt buộc)',
+        help_text='Chọn phân công của tài xế khác trên cùng xe. Hai người thay phiên lái trong cùng ca.')
     reason = forms.CharField(label='Lý do sửa lịch', required=False, max_length=2000)
 
     class Meta:
         model = DrivingShift
-        fields = ('assignment', 'start_at', 'end_at', 'early_minutes', 'grace_minutes', 'note')
+        fields = ('assignment', 'second_assignment', 'start_at', 'end_at', 'early_minutes', 'grace_minutes', 'note')
         labels = dict(assignment='Phân công tài xế / xe', start_at='Bắt đầu ca', end_at='Kết thúc ca',
                       early_minutes='Cho phép bắt đầu sớm (phút)', grace_minutes='Cho phép trễ (phút)', note='Ghi chú')
         widgets = {key: forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M')
@@ -31,6 +34,9 @@ class ShiftForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         assignments = DriverVehicleAssignment.objects.select_related('driver', 'vehicle')
+        self.fields['second_assignment'].queryset = assignments.filter(
+            Q(end_at__isnull=True) | Q(end_at__gt=timezone.now()) | Q(pk=self.instance.second_assignment_id)
+        ).order_by('driver__full_name', 'start_at', 'pk')
         if self.instance.pk:
             # Keep the historical assignment visible when inspecting an existing shift.
             assignments = assignments.filter(pk=self.instance.assignment_id)

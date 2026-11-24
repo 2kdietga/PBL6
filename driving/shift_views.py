@@ -3,6 +3,7 @@ from datetime import date, datetime, time, timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.db.models import Q, Prefetch
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
@@ -12,14 +13,16 @@ from accounts.concurrency import revision
 from accounts.models import DriverProfile
 from vehicles.models import Vehicle
 from frontend.views import admin_required, is_admin, page
-from .models import DrivingShift
+from .models import DrivingShift, DrivingSession
 from .shift_forms import ShiftForm, ShiftCorrectionForm
 from .shift_services import attendance, monthly_summaries, save_shift, shift_action, correct_shift
 
 
 def visible(user):
-    rows = DrivingShift.objects.select_related('assignment__driver', 'assignment__vehicle').prefetch_related('sessions')
-    return rows if is_admin(user) else rows.filter(assignment__driver__user=user)
+    rows = DrivingShift.objects.select_related('assignment__driver', 'assignment__vehicle',
+        'second_assignment__driver', 'replacement__assignment__driver', 'replacement__second_assignment__driver').prefetch_related(
+            Prefetch('sessions', queryset=DrivingSession.objects.select_related('assignment__driver').order_by('started_at', 'pk')))
+    return rows if is_admin(user) else rows.filter(Q(assignment__driver__user=user) | Q(second_assignment__driver__user=user))
 
 
 @login_required
@@ -37,7 +40,7 @@ def calendar(request):
     rows = visible(request.user).filter(start_at__lt=end, end_at__gt=start)
     driver_id, vehicle_id = request.GET.get('driver', ''), request.GET.get('vehicle', '')
     if is_admin(request.user) and driver_id.isascii() and driver_id.isdecimal() and len(driver_id) <= 18:
-        rows = rows.filter(assignment__driver_id=driver_id)
+        rows = rows.filter(Q(assignment__driver_id=driver_id) | Q(second_assignment__driver_id=driver_id))
     if vehicle_id.isascii() and vehicle_id.isdecimal() and len(vehicle_id) <= 18:
         rows = rows.filter(assignment__vehicle_id=vehicle_id)
     shifts = [(shift, attendance(shift)) for shift in rows]
@@ -67,15 +70,18 @@ def edit(request, pk=None):
             messages.success(request, 'Đã lưu lịch ca lái.')
             return redirect('frontend:shift-detail', pk=saved.pk)
     return page(request, 'form.html', title='Sửa ca lái' if shift else 'Tạo ca lái', form=form,
-                note='Ca phải nằm trong phân công và không trùng tài xế hoặc xe. Lịch khóa khi ca đã bắt đầu.')
+                note='Một ca có một hoặc hai tài xế cùng xe. Ca phải nằm trong thời hạn phân công của cả hai và không trùng ca khác. Kết thúc phiên của người đang lái trước khi người còn lại xác thực để nhận lượt. Lịch khóa khi ca đã bắt đầu.')
 
 
 @login_required
 def detail(request, pk):
     shift = get_object_or_404(visible(request.user), pk=pk)
     actual = attendance(shift)
+    second_driver = bool(shift.second_assignment_id and shift.second_assignment.driver.user_id == request.user.pk)
     return page(request, 'shift_detail.html', title=f'Ca lái #{shift.pk}', shift=shift, actual=actual,
                 version=revision(shift), audits=shift.audits.all() if is_admin(request.user) else [],
+                my_acknowledged_at=shift.second_acknowledged_at if second_driver else shift.acknowledged_at,
+                my_explanation=shift.second_explanation if second_driver else shift.explanation,
                 can_correct=not shift.cancelled and not shift.decision and not actual['active'],
                 can_edit=not shift.cancelled and not shift.decision and shift.start_at > timezone.now() and not actual['count'],
                 decisions=DrivingShift.Decision.choices)
@@ -86,7 +92,7 @@ def correct(request, pk):
     original = get_object_or_404(visible(request.user), pk=pk)
     form = ShiftCorrectionForm(request.POST or None, original=original,
         initial={field: getattr(original, field) for field in
-                 ('assignment', 'start_at', 'end_at', 'early_minutes', 'grace_minutes', 'note')})
+                 ('assignment', 'second_assignment', 'start_at', 'end_at', 'early_minutes', 'grace_minutes', 'note')})
     if request.method == 'POST' and form.is_valid():
         try:
             new = correct_shift(pk, form, request.user)

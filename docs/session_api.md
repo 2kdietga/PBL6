@@ -14,6 +14,29 @@
 
 Không tự duyệt hồ sơ cũ hay tự điền thông số xe. Thiếu dữ liệu thì API từ chối và trả thông báo cụ thể.
 
+## Hai tài xế chung một ca
+
+Admin tạo hai phân công tài xế trên cùng xe, sau đó chọn phân công thứ nhất và trường
+**Tài xế thứ hai (không bắt buộc)** trong form ca lái. Thời gian ca phải nằm trong
+hiệu lực của cả hai phân công. Mỗi người không được trùng với ca khác, dù là tài xế
+thứ nhất hay thứ hai. Bỏ trống tài xế thứ hai để giữ ca một người.
+
+Hai người có thể nhận lượt đầu tiên hoặc luân phiên nhiều lần. Để đổi người:
+
+1. Kết thúc session hiện tại bằng endpoint end và chờ phản hồi thành công.
+2. Gửi ảnh mới của người tiếp theo tới endpoint start.
+3. Chỉ nhận lượt khi start trả HTTP 201 / `SESSION_STARTED`.
+
+Nếu phiên trước chưa kết thúc, start bị chặn với `SESSION_ALREADY_ACTIVE`.
+Người tiếp theo vẫn phải thuộc ca, có phân công còn hiệu lực, đủ điều kiện
+hồ sơ/GPLX/khuôn mặt và không còn session mở trên xe khác. API không tự kết thúc
+phiên cũ hay tự kích hoạt phiên mới. Không cần đổi định dạng request trên Pi.
+
+Các session có cùng `shift_id` nhưng giữ `assignment` và tài xế thực tế riêng.
+Hai tài xế nhận lịch và gửi giải trình độc lập. Đánh giá đúng giờ / muộn / vắng của
+ca chung chỉ áp dụng cho ca, không cộng vào tỷ lệ chấp hành cá nhân; báo cáo hiển thị
+số ca chung riêng và chỉ tính phiên do chính tài xế đó lái ở cột Có phiên.
+
 ## Mở phiên
 
 Pi chỉ cần gọi endpoint start một lần với ảnh; không cần gọi face-verifications trước.
